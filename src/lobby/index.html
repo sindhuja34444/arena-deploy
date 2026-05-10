@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARENA · PVP Lobby</title>
+<link rel="icon" href="/assets/favicon.png">
+<link rel="stylesheet" href="../shared/halo.css">
+<style>
+  .lobby-stage {
+    position: fixed; left: 32px; bottom: 100px; z-index: 5;
+    width: min(440px, 44vw);
+  }
+  .code-inputs {
+    display: flex; gap: 10px; margin: 14px 0 18px;
+  }
+  .code-inputs input {
+    flex: 1; height: 80px;
+    background: rgba(8,12,18,0.65);
+    border: 1px solid var(--h-line);
+    color: var(--h-fg);
+    font-family: var(--h-mono);
+    font-size: 38px; font-weight: bold;
+    text-align: center; letter-spacing: 2px;
+    outline: none;
+    transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
+    caret-color: var(--h-accent);
+  }
+  .code-inputs input:focus {
+    border-color: var(--h-accent);
+    box-shadow: 0 0 18px var(--h-accent-glow);
+    background: rgba(126,182,225,0.06);
+  }
+  .code-inputs input::placeholder { color: var(--h-fg-dimmer); }
+
+  .lobby-actions { display: flex; gap: 10px; margin-top: 4px; }
+
+  .lobby-status {
+    margin-top: 18px; min-height: 22px;
+    font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+    color: var(--h-online); font-weight: 600;
+  }
+  .spinner {
+    display: none; margin: 14px 0;
+    width: 32px; height: 32px;
+    border: 2px solid var(--h-line);
+    border-top-color: var(--h-accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .lobby-help {
+    margin-top: 24px; font-size: 12px; color: var(--h-fg-dim);
+    line-height: 1.6; max-width: 320px;
+  }
+  .lobby-help b { color: var(--h-accent); font-weight: 600; }
+
+  .topright-news { font-style: italic; }
+</style>
+
+<script type="module">
+  import { initClerk, signIn, getToken } from '../shared/auth.js';
+  try {
+    const c = await initClerk();
+    if (!c.user) { signIn({ redirectUrl: '/lobby/' }); }
+    else {
+      const u = c.user;
+      const username = u.username || u.firstName || u.primaryEmailAddress?.emailAddress.split('@')[0] || 'operator';
+      window.__arenaAuth = { user: u, username, getToken, clerk: c };
+      localStorage.setItem('arenaPlayerName', username);
+    }
+  } catch (e) { console.warn('auth skipped', e?.message); }
+</script>
+</head>
+<body class="halo">
+
+<img class="halo-bg" src="/assets/mode-pvp.jpg" alt="">
+<div class="halo-bg-overlay"></div>
+
+<!-- Top tabs (link back to menu) -->
+<nav class="halo-tabs">
+  <button class="halo-tab" onclick="location.href='/menu/'">Lobby</button>
+  <button class="halo-tab active" data-tab="play">PVP</button>
+</nav>
+
+<aside class="halo-topright">
+  <div class="halo-status">
+    <span class="halo-status-dot"></span><span>Connected</span>
+  </div>
+  <div class="halo-news topright-news" style="cursor: default;">
+    <div class="halo-news-meta" style="text-align: left;">
+      <div class="halo-news-eyebrow">How it works</div>
+      <div class="halo-news-title">Both players enter the same 4-digit code.</div>
+    </div>
+  </div>
+</aside>
+
+<main class="halo-main lobby-stage">
+  <div class="halo-section-eyebrow">Match · 1v1</div>
+  <h1 style="font-size: 28px; font-weight: 600; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 8px;">PVP Lobby</h1>
+  <p style="color: var(--h-fg-dim); font-size: 13px; line-height: 1.5;">Enter a 4-digit room code. First operator in waits — second drops in.</p>
+
+  <div class="code-inputs">
+    <input type="text" maxlength="1" id="c0" placeholder="·" inputmode="numeric" autocomplete="off">
+    <input type="text" maxlength="1" id="c1" placeholder="·" inputmode="numeric" autocomplete="off">
+    <input type="text" maxlength="1" id="c2" placeholder="·" inputmode="numeric" autocomplete="off">
+    <input type="text" maxlength="1" id="c3" placeholder="·" inputmode="numeric" autocomplete="off">
+  </div>
+
+  <div class="lobby-actions">
+    <button class="halo-btn" id="back-btn">← Back</button>
+    <div style="flex:1"></div>
+    <button class="halo-btn" id="random-btn" title="Generate a random code">↻ Random</button>
+    <button class="halo-btn primary" id="join-btn" disabled>Join Match</button>
+  </div>
+
+  <div class="lobby-status" id="status-msg"></div>
+  <div class="spinner" id="spinner"></div>
+
+  <p class="lobby-help">Tip: Share <b>arena/lobby/?code=XXXX</b> with a friend to deep-link them straight here.</p>
+</main>
+
+<footer class="halo-toolbar">
+  <div class="halo-toolbar-left">
+    <span class="halo-keyhint"><kbd>0–9</kbd>Type Code</span>
+    <span class="halo-keyhint"><kbd>Paste</kbd>Full Code</span>
+  </div>
+  <div class="halo-toolbar-right">
+    <span class="halo-keyhint"><kbd>Esc</kbd>Back</span>
+    <button class="halo-tool play" id="join-shortcut">
+      <span>Join</span>
+      <kbd>Enter</kbd>
+    </button>
+  </div>
+</footer>
+
+<script>
+const inputs = ['c0','c1','c2','c3'].map(id => document.getElementById(id));
+const joinBtn   = document.getElementById('join-btn');
+const joinShort = document.getElementById('join-shortcut');
+const statusEl  = document.getElementById('status-msg');
+const spinner   = document.getElementById('spinner');
+
+function getCode() { return inputs.map(i => i.value).join(''); }
+function updateJoin() {
+  const code = getCode();
+  const ok = code.length === 4 && /^\d{4}$/.test(code);
+  joinBtn.disabled = !ok;
+  joinShort.style.opacity = ok ? '1' : '0.4';
+  joinShort.style.pointerEvents = ok ? 'auto' : 'none';
+}
+
+inputs.forEach((inp, idx) => {
+  inp.addEventListener('input', () => {
+    inp.value = inp.value.replace(/[^0-9]/g, '');
+    if (inp.value.length === 1 && idx < 3) inputs[idx + 1].focus();
+    updateJoin();
+  });
+  inp.addEventListener('keydown', (e) => {
+    if (e.key === 'Backspace' && inp.value === '' && idx > 0) {
+      inputs[idx - 1].focus(); inputs[idx - 1].value = '';
+      updateJoin();
+    }
+    if (e.key === 'Enter') joinBtn.click();
+  });
+  inp.addEventListener('paste', (e) => {
+    e.preventDefault();
+    const p = (e.clipboardData.getData('text') || '').replace(/[^0-9]/g, '').slice(0, 4);
+    for (let i = 0; i < 4; i++) inputs[i].value = p[i] || '';
+    if (p.length === 4) inputs[3].focus();
+    updateJoin();
+  });
+});
+
+// Auto-fill from ?code=NNNN
+const __urlCode = (new URLSearchParams(location.search).get('code') || '').replace(/[^0-9]/g, '').slice(0, 4);
+if (__urlCode.length === 4) {
+  for (let i = 0; i < 4; i++) inputs[i].value = __urlCode[i];
+  updateJoin();
+} else {
+  inputs[0].focus();
+}
+
+document.getElementById('back-btn').onclick = () => location.href = '/menu/';
+document.getElementById('random-btn').onclick = () => {
+  const c = String(Math.floor(1000 + Math.random() * 9000));
+  for (let i = 0; i < 4; i++) inputs[i].value = c[i];
+  updateJoin();
+};
+function start() {
+  const code = getCode();
+  if (code.length !== 4) return;
+  localStorage.setItem('pvpRoomCode', code);
+  statusEl.textContent = 'Loading arena…';
+  spinner.style.display = 'block';
+  setTimeout(() => location.href = '/pvp/', 300);
+}
+joinBtn.onclick   = start;
+joinShort.onclick = start;
+
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'Escape') { e.preventDefault(); location.href = '/menu/'; }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+# Cloudflare Pages / Netlify clean URLs
+/menu     /menu/index.html     200
+/lobby    /lobby/index.html    200
+/bots     /bots/index.html     200
+/pvp      /pvp/index.html      200

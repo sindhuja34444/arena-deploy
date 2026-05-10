@@ -1,0 +1,6 @@
+# Cloudflare Pages (alternative to Vercel)
+# Build with: npm run build
+# Output dir: dist
+name = "arena-fps"
+pages_build_output_dir = "dist"
+compatibility_date = "2025-01-01"

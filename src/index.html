@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARENA — Tactical FPS</title>
+<meta name="description" content="ARENA — fast, brutal, browser-based tactical FPS. Solo or 1v1.">
+<meta property="og:title" content="ARENA — Tactical FPS">
+<meta property="og:description" content="Fast. Brutal. Browser-based.">
+<meta property="og:image" content="/assets/og.jpg">
+<link rel="icon" href="/assets/favicon.png">
+<link rel="stylesheet" href="/landing/landing.css">
+</head>
+<body>
+<canvas id="bg-canvas"></canvas>
+
+<header class="nav">
+  <div class="nav-logo">ARE<span>NA</span></div>
+  <div class="nav-actions">
+    <button id="btn-signin" class="btn-ghost">Sign in</button>
+    <button id="btn-play"   class="btn-primary">Play</button>
+  </div>
+</header>
+
+<main class="hero">
+  <img id="hero-bg" src="/assets/hero-poster.jpg" alt="">
+  <div class="hero-overlay"></div>
+  <div class="hero-content">
+    <h1 class="hero-title">ARE<span>NA</span></h1>
+    <p class="hero-sub">Fast. Brutal. Browser-based.</p>
+    <div class="hero-cta">
+      <button id="btn-play-2" class="btn-primary lg">Drop In</button>
+      <a href="#modes" class="btn-ghost lg">See modes</a>
+    </div>
+    <div class="hero-stats" id="hero-stats">
+      <div class="stat"><div class="stat-num" id="stat-players">—</div><div class="stat-label">Players</div></div>
+      <div class="stat"><div class="stat-num" id="stat-matches">—</div><div class="stat-label">Matches</div></div>
+      <div class="stat"><div class="stat-num" id="stat-kills">—</div><div class="stat-label">Total Kills</div></div>
+    </div>
+  </div>
+</main>
+
+<section id="modes" class="modes">
+  <h2 class="section-title">Choose your mode</h2>
+  <div class="mode-grid">
+    <article class="mode-card">
+      <img src="/assets/mode-solo.jpg" alt="Solo vs Bots">
+      <h3>Solo · Bots</h3>
+      <p>Train against AI. Survive waves. No login required.</p>
+    </article>
+    <article class="mode-card">
+      <img src="/assets/mode-pvp.jpg" alt="PVP 1v1">
+      <h3>PVP · 1v1</h3>
+      <p>Room codes. Server-authoritative hits. Pure aim.</p>
+    </article>
+    <article class="mode-card">
+      <img src="/assets/mode-zones.jpg" alt="Capture Zones">
+      <h3>Capture Zones</h3>
+      <p>Hold ground. Earn points. Win the round.</p>
+    </article>
+  </div>
+</section>
+
+<section class="leaderboard">
+  <h2 class="section-title">Top operators</h2>
+  <ol id="lb-list" class="lb-list"><li class="lb-empty">Loading…</li></ol>
+</section>
+
+<footer class="foot">
+  <div>ARENA · v0.1</div>
+  <div>built with three.js · convex · clerk</div>
+</footer>
+
+<script type="module" src="/landing/landing.js"></script>
+</body>
+</html>
