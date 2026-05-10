@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARENA · Lobby</title>
+<link rel="icon" href="/assets/favicon.png">
+<link rel="stylesheet" href="../shared/halo.css">
+<style>
+  /* page-specific overrides only */
+  .tagline { font-style: italic; color: rgba(255,255,255,0.55); font-size: 14px; margin-top: 16px; max-width: 320px; line-height: 1.5; }
+  .submenu-empty { color: rgba(255,255,255,0.4); font-size: 13px; padding: 16px 0; }
+</style>
+
+<script type="module">
+  import { initClerk, signIn, getToken } from '../shared/auth.js';
+  import { getConvex } from '../shared/convex.js';
+  import { api } from '../../convex/_generated/api.js';
+
+  try {
+    const clerk = await initClerk();
+    if (!clerk.user) { signIn({ redirectUrl: '/menu/' }); }
+    else {
+      const u = clerk.user;
+      const username = u.username || u.firstName || u.primaryEmailAddress?.emailAddress.split('@')[0] || 'operator';
+      window.__arenaAuth = { user: u, username, getToken, clerk };
+      localStorage.setItem('arenaPlayerName', username);
+      const convex = getConvex();
+      if (convex) {
+        try {
+          await convex.mutation(api.users.upsertFromClerk, {
+            clerkId: u.id, username, avatarUrl: u.imageUrl,
+          });
+        } catch (e) { console.warn('user sync skipped:', e?.message); }
+      }
+    }
+  } catch (e) { console.warn('auth skipped', e?.message); }
+</script>
+</head>
+<body class="halo">
+
+<!-- ── BG ─────────────────────────────────────────────── -->
+<img class="halo-bg" src="/assets/hero-poster.jpg" alt="">
+<div class="halo-bg-overlay"></div>
+
+<!-- ── TOP LEFT: tabs ─────────────────────────────────── -->
+<nav class="halo-tabs" id="tabs">
+  <span class="halo-keychip">Q</span>
+  <button class="halo-tab active" data-tab="play">Play</button>
+  <button class="halo-tab" data-tab="career">Career</button>
+  <button class="halo-tab" data-tab="loadout">Loadout</button>
+  <button class="halo-tab" data-tab="social">Social</button>
+  <button class="halo-tab" data-tab="settings">Settings</button>
+  <span class="halo-keychip">E</span>
+</nav>
+
+<!-- ── TOP RIGHT: status + news preview ───────────────── -->
+<aside class="halo-topright">
+  <div class="halo-status" id="online-status">
+    <span class="halo-status-dot"></span>
+    <span id="online-count">— online</span>
+  </div>
+  <button class="halo-news" id="news-card">
+    <img src="/assets/mode-pvp.jpg" alt="">
+    <div class="halo-news-meta">
+      <div class="halo-news-eyebrow">Featured</div>
+      <div class="halo-news-title">PVP · 1v1</div>
+    </div>
+  </button>
+</aside>
+
+<!-- ── BOTTOM LEFT: vertical menu ─────────────────────── -->
+<main class="halo-main">
+  <div class="halo-section-eyebrow" id="section-eyebrow">PLAY</div>
+
+  <!-- PLAY submenu -->
+  <div class="halo-submenu" data-panel="play">
+    <button class="halo-item active" data-action="mode-bots">
+      <span class="halo-item-label">Solo · Bots</span>
+      <span class="halo-item-meta">Train</span>
+    </button>
+    <button class="halo-item" data-action="mode-pvp">
+      <span class="halo-item-label">PVP · 1v1</span>
+      <span class="halo-item-meta">Live</span>
+    </button>
+    <button class="halo-item" data-action="invite">
+      <span class="halo-item-label">Invite a friend</span>
+      <span class="halo-item-meta">Code</span>
+    </button>
+    <button class="halo-item" data-action="mode-zones" disabled>
+      <span class="halo-item-label">Capture Zones</span>
+      <span class="halo-item-meta">Soon</span>
+    </button>
+    <p class="tagline" id="play-tagline">Solo training. No login pressure. Survive the waves.</p>
+  </div>
+
+  <!-- CAREER submenu -->
+  <div class="halo-submenu hidden" data-panel="career">
+    <div class="halo-stats-grid">
+      <div class="halo-stat">
+        <div class="halo-stat-num" id="c-kills">0</div>
+        <div class="halo-stat-lbl">Kills</div>
+      </div>
+      <div class="halo-stat">
+        <div class="halo-stat-num" id="c-deaths">0</div>
+        <div class="halo-stat-lbl">Deaths</div>
+      </div>
+      <div class="halo-stat">
+        <div class="halo-stat-num" id="c-kd">0.00</div>
+        <div class="halo-stat-lbl">K / D</div>
+      </div>
+      <div class="halo-stat">
+        <div class="halo-stat-num" id="c-elo">1000</div>
+        <div class="halo-stat-lbl">ELO</div>
+      </div>
+      <div class="halo-stat">
+        <div class="halo-stat-num" id="c-wins">0</div>
+        <div class="halo-stat-lbl">Wins</div>
+      </div>
+      <div class="halo-stat">
+        <div class="halo-stat-num" id="c-wr">0%</div>
+        <div class="halo-stat-lbl">Win rate</div>
+      </div>
+    </div>
+    <p class="tagline">Stats sync to Convex on every match.</p>
+  </div>
+
+  <!-- LOADOUT submenu -->
+  <div class="halo-submenu hidden" data-panel="loadout">
+    <button class="halo-item active" data-loadout="rifle-shotgun">
+      <span class="halo-item-label">Rifle + Shotgun</span>
+      <span class="halo-item-meta">Default</span>
+    </button>
+    <button class="halo-item" disabled>
+      <span class="halo-item-label">Rifle + Pistol</span>
+      <span class="halo-item-meta">Soon</span>
+    </button>
+    <button class="halo-item" disabled>
+      <span class="halo-item-label">SMG + Shotgun</span>
+      <span class="halo-item-meta">Soon</span>
+    </button>
+    <p class="tagline">More loadouts shipping next patch.</p>
+  </div>
+
+  <!-- SOCIAL submenu -->
+  <div class="halo-submenu hidden" data-panel="social">
+    <div class="halo-tabs-sub">
+      <button class="halo-subtab active" data-subtab="friends">Friends <span id="friend-count" class="halo-pill">0</span></button>
+      <button class="halo-subtab" data-subtab="requests">Requests <span id="req-count" class="halo-pill halo-pill-accent">0</span></button>
+      <button class="halo-subtab" data-subtab="search">Add</button>
+    </div>
+
+    <div class="halo-list" id="friends-list" data-subpanel="friends">
+      <div class="halo-list-empty">No friends yet — add one.</div>
+    </div>
+    <div class="halo-list hidden" id="requests-list" data-subpanel="requests">
+      <div class="halo-list-empty">No incoming requests.</div>
+    </div>
+    <div class="halo-list hidden" data-subpanel="search">
+      <div class="halo-search-row">
+        <input type="text" id="search-input" placeholder="Search by username…" maxlength="16" spellcheck="false">
+        <button class="halo-btn" id="search-add">Send Request</button>
+      </div>
+      <div id="search-results"></div>
+      <div class="halo-search-status" id="search-status"></div>
+    </div>
+  </div>
+
+  <!-- SETTINGS submenu -->
+  <div class="halo-submenu hidden" data-panel="settings">
+    <div class="halo-setting">
+      <div class="halo-setting-meta">
+        <div class="halo-setting-label">Display name</div>
+        <div class="halo-setting-hint" id="name-hint">3–16 chars · letters, numbers, underscore</div>
+      </div>
+      <div class="halo-setting-control">
+        <input type="text" id="name-input" maxlength="16" spellcheck="false" autocomplete="off">
+        <button class="halo-btn" id="save-name" disabled>Save</button>
+      </div>
+    </div>
+    <div class="halo-setting">
+      <div class="halo-setting-meta">
+        <div class="halo-setting-label">Keybinds</div>
+        <div class="halo-setting-hint">Customise WASD, weapons, abilities.</div>
+      </div>
+      <button class="halo-btn" id="open-kb">Customise</button>
+    </div>
+    <div class="halo-setting">
+      <div class="halo-setting-meta">
+        <div class="halo-setting-label">Account</div>
+        <div class="halo-setting-hint" id="account-email">—</div>
+      </div>
+      <button class="halo-btn" id="signout">Sign out</button>
+    </div>
+  </div>
+</main>
+
+<!-- ── BOTTOM TOOLBAR ─────────────────────────────────── -->
+<footer class="halo-toolbar">
+  <div class="halo-toolbar-left">
+    <button class="halo-tool" id="profile-btn">
+      <span class="halo-tool-avatar" id="profile-avatar">?</span>
+      <span class="halo-tool-text">
+        <span class="halo-tool-name" id="profile-name">…</span>
+        <span class="halo-tool-sub" id="profile-elo">— ELO</span>
+      </span>
+    </button>
+    <button class="halo-tool" id="friends-shortcut">
+      <span class="halo-tool-icon">◉</span>
+      <span class="halo-tool-text">
+        <span class="halo-tool-name">Friends</span>
+        <span class="halo-tool-sub" id="online-friends">0 online</span>
+      </span>
+      <span class="halo-tool-badge" id="online-badge" hidden>0</span>
+    </button>
+  </div>
+  <div class="halo-toolbar-right">
+    <span class="halo-keyhint"><kbd>Esc</kbd>Back</span>
+    <span class="halo-keyhint"><kbd>Tab</kbd>Switch</span>
+    <button class="halo-tool play" id="btn-play">
+      <span>Drop In</span>
+      <kbd>Enter</kbd>
+    </button>
+  </div>
+</footer>
+
+<!-- ── INVITE OVERLAY ─────────────────────────────────── -->
+<div class="halo-overlay" id="invite-overlay">
+  <div class="halo-modal">
+    <div class="halo-modal-eyebrow">Match Invite</div>
+    <h2 class="halo-modal-title">Send a private code</h2>
+    <p class="halo-modal-text">Share with a friend. They join you in a private 1v1.</p>
+    <div class="halo-code-display" id="invite-code">····</div>
+    <div class="halo-link-display" id="invite-link">…</div>
+    <div class="halo-modal-actions">
+      <button class="halo-btn" id="invite-close">Close</button>
+      <div style="flex:1"></div>
+      <button class="halo-btn" id="invite-regen">↻ New</button>
+      <button class="halo-btn primary" id="invite-copy">Copy Link</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── KEYBINDS OVERLAY ──────────────────────────────── -->
+<div class="halo-overlay" id="kb-overlay">
+  <div class="halo-modal" style="max-width: 600px;">
+    <div class="halo-modal-eyebrow">Controls</div>
+    <h2 class="halo-modal-title">Keybinds</h2>
+    <p class="halo-modal-text">Click a key, then press to rebind.</p>
+    <div class="halo-kb-grid" id="kb-grid"></div>
+    <div class="halo-modal-actions">
+      <button class="halo-btn" id="kb-close">Close</button>
+      <div style="flex:1"></div>
+      <button class="halo-btn" id="kb-reset">Reset</button>
+      <button class="halo-btn primary" id="kb-save">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── ESC LEAVE OVERLAY ─────────────────────────────── -->
+<div class="halo-overlay" id="esc-overlay">
+  <div class="halo-modal">
+    <h2 class="halo-modal-title">Leave Lobby?</h2>
+    <p class="halo-modal-text">Return to the landing page.</p>
+    <div class="halo-modal-actions">
+      <button class="halo-btn" id="esc-cancel">Stay</button>
+      <div style="flex:1"></div>
+      <button class="halo-btn primary" id="esc-confirm">Leave</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="./menu.js"></script>
+</body>
+</html>

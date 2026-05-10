@@ -1,0 +1,21 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/menu",  "destination": "/menu/index.html"  },
+    { "source": "/lobby", "destination": "/lobby/index.html" },
+    { "source": "/bots",  "destination": "/bots/index.html"  },
+    { "source": "/pvp",   "destination": "/pvp/index.html"   }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy",        "value": "strict-origin-when-cross-origin" }
+      ]
+    }
+  ]
+}
