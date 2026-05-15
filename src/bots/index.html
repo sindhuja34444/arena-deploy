@@ -5189,10 +5189,13 @@ function triggerGameOver() {
 // ─────────────────────────────────────────────
 // ── Pause state ───────────────────────────────────────────────────────────
 let gamePaused = false;
+let pausedAt = 0;
 
 function pauseGame() {
   if (!state.running || state.gameOver) return;
   gamePaused = true;
+  pausedAt = performance.now();
+  document.getElementById('lock-overlay').style.display = 'none';
   document.exitPointerLock();
   document.getElementById('pause-overlay').style.display = 'flex';
 }
@@ -5214,8 +5217,9 @@ document.getElementById('pause-leave-btn').addEventListener('click', () => {
 
 document.addEventListener('keydown', e => {
   if (e.code === 'Escape') {
-    if (gamePaused) resumeGame();
-    else pauseGame();
+    // Only handle resume — pausing is triggered by pointerlockchange when browser exits pointer lock
+    // Skip if pause just happened on this same ESC press (within 100ms)
+    if (gamePaused && performance.now() - pausedAt > 100) resumeGame();
     return;
   }
   state.keys[e.code] = true;
@@ -5228,7 +5232,7 @@ document.addEventListener('keydown', e => {
 document.addEventListener('keyup', e => { state.keys[e.code] = false; });
 
 document.addEventListener('mousedown', e => {
-  if (!state.running) return;
+  if (!state.running || gamePaused) return;
   const btn = 'Mouse' + e.button;
   if (btn === KB.shoot) {
     if (document.pointerLockElement !== canvas) {
@@ -5279,8 +5283,9 @@ document.addEventListener('pointerlockchange', () => {
   if (document.pointerLockElement === canvas) {
     overlay.style.display = 'none';
   } else if (state.running && !state.gameOver) {
-    // Only show overlay if game is actually running (not on start/gameover screens)
-    overlay.style.display = 'flex';
+    // Pointer lock lost during gameplay — always show pause menu directly
+    overlay.style.display = 'none';
+    if (!gamePaused) pauseGame();
   } else {
     overlay.style.display = 'none';
   }
@@ -5291,7 +5296,7 @@ document.getElementById('lock-overlay').addEventListener('click', () => {
 });
 
 canvas.addEventListener('click', () => {
-  if (state.running && !state.gameOver) canvas.requestPointerLock();
+  if (state.running && !state.gameOver && !gamePaused) canvas.requestPointerLock();
 });
 
 window.addEventListener('resize', () => {

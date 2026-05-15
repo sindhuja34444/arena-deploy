@@ -1036,9 +1036,10 @@ const remotePlayers = {};   // id → { mesh, group, hp, shield, hpFill, nameTag
 
 // ── Build a humanoid player model (seen by opponent) ─────────────────────
 // ── Load the GLTF model for each player ──────────────────────────────────
-// ── Build block-style opponent player model (same style as bots) ─────────
+// ── Build block-style opponent player model (scaled up, more detail) ─────
 function buildRemotePlayerModel(id) {
   const root = new THREE.Group();
+  const S = 1.25; // scale factor — bigger, more imposing
 
   const bodyMat   = new THREE.MeshLambertMaterial({ color: 0x8b2020 });
   const armorMat  = new THREE.MeshLambertMaterial({ color: 0x5c1010 });
@@ -1049,280 +1050,330 @@ function buildRemotePlayerModel(id) {
   const gunMat    = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
   const redMat    = new THREE.MeshBasicMaterial({ color: 0xff0000 });
 
-  // ── Feet / Boots ──────────────────────────────────────────────────────
-  const bootGeo = new THREE.BoxGeometry(0.14, 0.10, 0.22);
+  // ── Feet / Boots (chunkier, tactical) ─────────────────────────────────
+  const bootGeo = new THREE.BoxGeometry(0.18*S, 0.14*S, 0.28*S);
   const leftBoot = new THREE.Mesh(bootGeo, darkMat);
   const rightBoot = new THREE.Mesh(bootGeo, darkMat);
-  leftBoot.position.set(-0.10, 0.05, 0.02);
-  rightBoot.position.set(0.10, 0.05, 0.02);
+  leftBoot.position.set(-0.12*S, 0.07*S, 0.02*S);
+  rightBoot.position.set(0.12*S, 0.07*S, 0.02*S);
   root.add(leftBoot, rightBoot);
+  // Boot soles
+  const soleGeo = new THREE.BoxGeometry(0.19*S, 0.04*S, 0.30*S);
+  const leftSole = new THREE.Mesh(soleGeo, new THREE.MeshLambertMaterial({ color: 0x0a0a0a }));
+  const rightSole = new THREE.Mesh(soleGeo, new THREE.MeshLambertMaterial({ color: 0x0a0a0a }));
+  leftSole.position.set(0, -0.05*S, 0.01*S);
+  rightSole.position.set(0, -0.05*S, 0.01*S);
+  leftBoot.add(leftSole);
+  rightBoot.add(rightSole);
 
-  // ── Legs (longer, thinner — more human) ───────────────────────────────
-  const legGeo = new THREE.BoxGeometry(0.12, 0.72, 0.12);
+  // ── Legs (longer, armored) ────────────────────────────────────────────
+  const legGeo = new THREE.BoxGeometry(0.14*S, 0.80*S, 0.14*S);
   const leftLeg  = new THREE.Mesh(legGeo, darkMat);
   const rightLeg = new THREE.Mesh(legGeo, darkMat);
-  leftLeg.position.set(-0.10, 0.46, 0);
-  rightLeg.position.set( 0.10, 0.46, 0);
+  leftLeg.position.set(-0.12*S, 0.54*S, 0);
+  rightLeg.position.set( 0.12*S, 0.54*S, 0);
   root.add(leftLeg, rightLeg);
 
-  // Knee pads
+  // Knee pads (bigger)
   [leftLeg, rightLeg].forEach(leg => {
-    const kp = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.08, 0.14), armorMat);
-    kp.position.set(0, -0.08, 0.05);
+    const kp = new THREE.Mesh(new THREE.BoxGeometry(0.16*S, 0.12*S, 0.17*S), armorMat);
+    kp.position.set(0, -0.10*S, 0.06*S);
     leg.add(kp);
+    const kpAccent = new THREE.Mesh(new THREE.BoxGeometry(0.08*S, 0.04*S, 0.02*S), accentMat);
+    kpAccent.position.set(0, 0, 0.08*S);
+    kp.add(kpAccent);
+  });
+  // Thigh armor
+  [leftLeg, rightLeg].forEach((leg, i) => {
+    const thigh = new THREE.Mesh(new THREE.BoxGeometry(0.15*S, 0.20*S, 0.16*S), armorMat);
+    thigh.position.set(i === 0 ? -0.01*S : 0.01*S, 0.18*S, 0.02*S);
+    leg.add(thigh);
   });
 
   // ── Hips / Belt ───────────────────────────────────────────────────────
-  const hips = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.12, 0.18), darkMat);
-  hips.position.set(0, 0.86, 0);
+  const hips = new THREE.Mesh(new THREE.BoxGeometry(0.40*S, 0.14*S, 0.22*S), darkMat);
+  hips.position.set(0, 0.98*S, 0);
   root.add(hips);
-  const belt = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.06, 0.20), armorMat);
-  belt.position.set(0, 0.04, 0);
+  const belt = new THREE.Mesh(new THREE.BoxGeometry(0.42*S, 0.07*S, 0.24*S), armorMat);
+  belt.position.set(0, 0.04*S, 0);
   hips.add(belt);
+  // Belt pouches
+  [-0.16*S, 0.16*S].forEach(px => {
+    const pouch = new THREE.Mesh(new THREE.BoxGeometry(0.06*S, 0.06*S, 0.08*S), darkMat);
+    pouch.position.set(px, -0.02*S, 0.10*S);
+    hips.add(pouch);
+  });
 
-  // ── Torso (taller, narrower) ──────────────────────────────────────────
-  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.52, 0.20), bodyMat);
-  torso.position.set(0, 1.20, 0);
+  // ── Torso (broader, more armored) ─────────────────────────────────────
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.44*S, 0.58*S, 0.24*S), bodyMat);
+  torso.position.set(0, 1.36*S, 0);
   root.add(torso);
 
-  // Chest plate
-  const chest = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.36, 0.06), armorMat);
-  chest.position.set(0, 0.02, 0.09);
+  // Chest plate (larger, layered)
+  const chest = new THREE.Mesh(new THREE.BoxGeometry(0.40*S, 0.42*S, 0.07*S), armorMat);
+  chest.position.set(0, 0.02*S, 0.10*S);
   torso.add(chest);
 
   // Chest accent stripe
-  const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.28, 0.02), accentMat);
-  stripe.position.set(0, 0, 0.04);
+  const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.05*S, 0.34*S, 0.02*S), accentMat);
+  stripe.position.set(0, 0, 0.04*S);
   chest.add(stripe);
+  // Chest cross-strap
+  const strap = new THREE.Mesh(new THREE.BoxGeometry(0.03*S, 0.50*S, 0.02*S), darkMat);
+  strap.rotation.z = 0.4;
+  strap.position.set(-0.08*S, 0, 0.04*S);
+  chest.add(strap);
 
   // Back plate
-  const backPlate = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.30, 0.04), armorMat);
-  backPlate.position.set(0, 0, -0.09);
+  const backPlate = new THREE.Mesh(new THREE.BoxGeometry(0.36*S, 0.36*S, 0.05*S), armorMat);
+  backPlate.position.set(0, 0, -0.10*S);
   torso.add(backPlate);
+  // Backpack
+  const backpack = new THREE.Mesh(new THREE.BoxGeometry(0.24*S, 0.28*S, 0.12*S), darkMat);
+  backpack.position.set(0, -0.04*S, -0.16*S);
+  torso.add(backpack);
 
-  // Shoulder pads
-  [-0.24, 0.24].forEach(sx => {
-    const sp = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.10, 0.16), armorMat);
-    sp.position.set(sx, 0.20, 0);
+  // Shoulder pads (bigger, angular)
+  [-0.28*S, 0.28*S].forEach(sx => {
+    const sp = new THREE.Mesh(new THREE.BoxGeometry(0.14*S, 0.12*S, 0.20*S), armorMat);
+    sp.position.set(sx, 0.22*S, 0);
     torso.add(sp);
+    const spAccent = new THREE.Mesh(new THREE.BoxGeometry(0.06*S, 0.03*S, 0.12*S), accentMat);
+    spAccent.position.set(0, 0.06*S, 0);
+    sp.add(spAccent);
   });
 
-  // ── Arms posed gripping rifle (right hand on grip, left on foregrip) ──
-  // Limb pieces are pivoted at the shoulder/elbow so we can pose them.
-  const upperArmGeo = new THREE.BoxGeometry(0.10, 0.30, 0.10);
-  const forearmGeo  = new THREE.BoxGeometry(0.085, 0.30, 0.085);
-  const handGeo     = new THREE.BoxGeometry(0.08, 0.10, 0.10);
+  // ── Arms posed gripping rifle ─────────────────────────────────────────
+  const upperArmGeo = new THREE.BoxGeometry(0.12*S, 0.34*S, 0.12*S);
+  const forearmGeo  = new THREE.BoxGeometry(0.10*S, 0.34*S, 0.10*S);
+  const handGeo     = new THREE.BoxGeometry(0.09*S, 0.12*S, 0.12*S);
 
-  // RIGHT ARM — pistol grip, elbow tucked back
+  // RIGHT ARM — holds pistol grip
   const rightArm = new THREE.Group();
-  const rShoulderJoint = new THREE.Group();   // shoulder pivot
+  const rShoulderJoint = new THREE.Group();
   rightArm.add(rShoulderJoint);
   const rUpperArm = new THREE.Mesh(upperArmGeo, bodyMat);
-  rUpperArm.position.set(0, -0.15, 0);        // hangs below shoulder pivot
+  rUpperArm.position.set(0, -0.17*S, 0);
   rShoulderJoint.add(rUpperArm);
+  const rElbowGuard = new THREE.Mesh(new THREE.BoxGeometry(0.13*S, 0.08*S, 0.13*S), armorMat);
+  rElbowGuard.position.set(0, -0.30*S, 0);
+  rShoulderJoint.add(rElbowGuard);
   const rElbowJoint = new THREE.Group();
-  rElbowJoint.position.set(0, -0.30, 0);
+  rElbowJoint.position.set(0, -0.34*S, 0);
   rShoulderJoint.add(rElbowJoint);
   const rForearm = new THREE.Mesh(forearmGeo, bodyMat);
-  rForearm.position.set(0, -0.15, 0);
+  rForearm.position.set(0, -0.17*S, 0);
   rElbowJoint.add(rForearm);
   const rHand = new THREE.Mesh(handGeo, skinMat);
-  rHand.position.set(0, -0.32, 0);
+  rHand.position.set(0, -0.36*S, 0);
   rElbowJoint.add(rHand);
 
-  // Pose: shoulder forward + slightly down, elbow bent forward to bring hand to grip
-  rShoulderJoint.rotation.set(0.55, -0.10, -0.05);
-  rElbowJoint.rotation.set(-1.10, -0.20, 0);
-  rightArm.position.set(0.22, 1.46, 0);
-  root.add(rightArm);
+  // Pose right arm: shoulder pitched forward, elbow bent to bring hand to pistol grip
+  rShoulderJoint.rotation.set(-0.55, -0.50, 0.15);
+  rElbowJoint.rotation.set(-0.90, 0, 0);
+  rightArm.position.set(0.22*S, 0.18*S, 0);
+  torso.add(rightArm);
 
-  // LEFT ARM — foregrip, extended further forward
+  // LEFT ARM — holds foregrip
   const leftArm = new THREE.Group();
   const lShoulderJoint = new THREE.Group();
   leftArm.add(lShoulderJoint);
   const lUpperArm = new THREE.Mesh(upperArmGeo, bodyMat);
-  lUpperArm.position.set(0, -0.15, 0);
+  lUpperArm.position.set(0, -0.17*S, 0);
   lShoulderJoint.add(lUpperArm);
+  const lElbowGuard = new THREE.Mesh(new THREE.BoxGeometry(0.13*S, 0.08*S, 0.13*S), armorMat);
+  lElbowGuard.position.set(0, -0.30*S, 0);
+  lShoulderJoint.add(lElbowGuard);
   const lElbowJoint = new THREE.Group();
-  lElbowJoint.position.set(0, -0.30, 0);
+  lElbowJoint.position.set(0, -0.34*S, 0);
   lShoulderJoint.add(lElbowJoint);
   const lForearm = new THREE.Mesh(forearmGeo, bodyMat);
-  lForearm.position.set(0, -0.15, 0);
+  lForearm.position.set(0, -0.17*S, 0);
   lElbowJoint.add(lForearm);
   const lHand = new THREE.Mesh(handGeo, skinMat);
-  lHand.position.set(0, -0.32, 0);
+  lHand.position.set(0, -0.36*S, 0);
   lElbowJoint.add(lHand);
 
-  // Left arm reaches more forward to grip the foregrip
-  lShoulderJoint.rotation.set(0.95, 0.18, 0.05);
-  lElbowJoint.rotation.set(-0.85, 0.10, 0);
-  leftArm.position.set(-0.22, 1.46, 0);
-  root.add(leftArm);
+  // Pose left arm: shoulder pitched more forward, elbow bent to reach foregrip
+  lShoulderJoint.rotation.set(-0.65, 0.50, -0.15);
+  lElbowJoint.rotation.set(-0.80, 0, 0);
+  leftArm.position.set(-0.22*S, 0.18*S, 0);
+  torso.add(leftArm);
 
   // ── Neck ──────────────────────────────────────────────────────────────
-  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.10, 8), skinMat);
-  neck.position.set(0, 1.50, 0);
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.07*S, 0.08*S, 0.12*S, 8), skinMat);
+  neck.position.set(0, 1.70*S, 0);
   root.add(neck);
+  // Neck guard
+  const neckGuard = new THREE.Mesh(new THREE.BoxGeometry(0.22*S, 0.06*S, 0.14*S), armorMat);
+  neckGuard.position.set(0, 1.68*S, -0.04*S);
+  root.add(neckGuard);
 
   // ── Head (rotates with pitch) ─────────────────────────────────────────
   const headGroup = new THREE.Group();
-  headGroup.position.set(0, 1.62, 0);
+  headGroup.position.set(0, 1.84*S, 0);
   root.add(headGroup);
 
-  // Helmet
-  const helm = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.28, 0.28), armorMat);
+  // Helmet (bigger, angular)
+  const helm = new THREE.Mesh(new THREE.BoxGeometry(0.32*S, 0.32*S, 0.32*S), armorMat);
   headGroup.add(helm);
-  // Helmet ridge
-  const ridge = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.04, 0.24), darkMat);
-  ridge.position.set(0, 0.14, 0);
+  // Helmet ridge (mohawk)
+  const ridge = new THREE.Mesh(new THREE.BoxGeometry(0.07*S, 0.06*S, 0.28*S), darkMat);
+  ridge.position.set(0, 0.16*S, 0);
   headGroup.add(ridge);
-  // Visor
-  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.08, 0.04), visorMat);
-  visor.position.set(0, 0.02, 0.14);
+  // Visor (wider, menacing)
+  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.28*S, 0.10*S, 0.05*S), visorMat);
+  visor.position.set(0, 0.02*S, 0.15*S);
   headGroup.add(visor);
-  // Chin
-  const chin = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.05, 0.06), darkMat);
-  chin.position.set(0, -0.10, 0.10);
+  // Visor glow edge
+  const visorEdge = new THREE.Mesh(new THREE.BoxGeometry(0.30*S, 0.02*S, 0.03*S), accentMat);
+  visorEdge.position.set(0, -0.04*S, 0.16*S);
+  headGroup.add(visorEdge);
+  // Chin guard
+  const chin = new THREE.Mesh(new THREE.BoxGeometry(0.22*S, 0.07*S, 0.08*S), darkMat);
+  chin.position.set(0, -0.12*S, 0.10*S);
   headGroup.add(chin);
-  // Ear pieces
-  [-0.15, 0.15].forEach(ex => {
-    const ear = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.08, 0.08), darkMat);
+  // Ear pieces (comms)
+  [-0.17*S, 0.17*S].forEach(ex => {
+    const ear = new THREE.Mesh(new THREE.BoxGeometry(0.05*S, 0.10*S, 0.10*S), darkMat);
     ear.position.set(ex, 0, 0);
     headGroup.add(ear);
+    if (ex > 0) {
+      const antenna = new THREE.Mesh(new THREE.BoxGeometry(0.015*S, 0.12*S, 0.015*S), accentMat);
+      antenna.position.set(0.02*S, 0.08*S, 0);
+      ear.add(antenna);
+    }
   });
 
-  // ── Detailed rifle — held in both hands, pitches with aim ──────────────
-  // Pivot point: right shoulder area, gun extends forward (+Z)
+  // ── Detailed rifle — held in both hands ────────────────────────────────
+  // Weapon is child of torso so it moves with the body
   const weaponGroup = new THREE.Group();
-  weaponGroup.position.set(0.12, 1.40, 0.10);   // shoulder pocket
+  weaponGroup.position.set(0.0, -0.10*S, 0.38*S);
+  torso.add(weaponGroup);
 
   const metalMat = new THREE.MeshLambertMaterial({ color: 0x222226 });
   const polyMat  = new THREE.MeshLambertMaterial({ color: 0x141416 });
   const gripMat  = new THREE.MeshLambertMaterial({ color: 0x0c0c0e });
 
-  // Receiver (main body, rectangular)
-  const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.09, 0.34), metalMat);
-  receiver.position.set(0, 0, 0.05);
+  // Receiver
+  const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.07*S, 0.10*S, 0.38*S), metalMat);
+  receiver.position.set(0, 0, 0.05*S);
   weaponGroup.add(receiver);
 
-  // Top rail (flat strip running over receiver + barrel)
-  const rail = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.014, 0.42), polyMat);
-  rail.position.set(0, 0.052, 0.10);
+  // Top rail
+  const rail = new THREE.Mesh(new THREE.BoxGeometry(0.05*S, 0.016*S, 0.46*S), polyMat);
+  rail.position.set(0, 0.058*S, 0.10*S);
   weaponGroup.add(rail);
 
-  // Iron sight front + rear posts
-  const rearSight = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.025, 0.018), metalMat);
-  rearSight.position.set(0, 0.072, -0.02);
+  // Sight posts
+  const rearSight = new THREE.Mesh(new THREE.BoxGeometry(0.028*S, 0.028*S, 0.020*S), metalMat);
+  rearSight.position.set(0, 0.078*S, -0.02*S);
   weaponGroup.add(rearSight);
-  const frontSight = new THREE.Mesh(new THREE.BoxGeometry(0.020, 0.030, 0.014), metalMat);
-  frontSight.position.set(0, 0.075, 0.30);
+  const frontSight = new THREE.Mesh(new THREE.BoxGeometry(0.022*S, 0.034*S, 0.016*S), metalMat);
+  frontSight.position.set(0, 0.082*S, 0.32*S);
   weaponGroup.add(frontSight);
 
-  // Barrel (long cylinder forward)
-  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.32, 10), metalMat);
+  // Barrel
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.016*S, 0.016*S, 0.36*S, 10), metalMat);
   barrel.rotation.x = Math.PI / 2;
-  barrel.position.set(0, 0.012, 0.36);
+  barrel.position.set(0, 0.014*S, 0.40*S);
   weaponGroup.add(barrel);
 
   // Muzzle brake
-  const muzzle = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.048, 8), polyMat);
+  const muzzle = new THREE.Mesh(new THREE.CylinderGeometry(0.025*S, 0.025*S, 0.055*S, 8), polyMat);
   muzzle.rotation.x = Math.PI / 2;
-  muzzle.position.set(0, 0.012, 0.54);
+  muzzle.position.set(0, 0.014*S, 0.60*S);
   weaponGroup.add(muzzle);
 
-  // Handguard / forend (wraps front lower portion of barrel)
-  const handguard = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.22), polyMat);
-  handguard.position.set(0, -0.005, 0.32);
+  // Handguard
+  const handguard = new THREE.Mesh(new THREE.BoxGeometry(0.06*S, 0.06*S, 0.24*S), polyMat);
+  handguard.position.set(0, -0.005*S, 0.34*S);
   weaponGroup.add(handguard);
 
-  // Foregrip (vertical handle under handguard — left hand grips here)
-  const foregrip = new THREE.Mesh(new THREE.BoxGeometry(0.030, 0.085, 0.045), gripMat);
-  foregrip.position.set(0, -0.075, 0.26);
+  // Foregrip
+  const foregrip = new THREE.Mesh(new THREE.BoxGeometry(0.034*S, 0.095*S, 0.050*S), gripMat);
+  foregrip.position.set(0, -0.08*S, 0.28*S);
   weaponGroup.add(foregrip);
 
-  // Magazine (curved-ish rectangle hanging below receiver)
-  const mag = new THREE.Mesh(new THREE.BoxGeometry(0.038, 0.12, 0.05), polyMat);
-  mag.position.set(0, -0.10, 0.06);
+  // Magazine
+  const mag = new THREE.Mesh(new THREE.BoxGeometry(0.042*S, 0.14*S, 0.055*S), polyMat);
+  mag.position.set(0, -0.11*S, 0.06*S);
   weaponGroup.add(mag);
-  const magTip = new THREE.Mesh(new THREE.BoxGeometry(0.040, 0.018, 0.052), gripMat);
-  magTip.position.set(0, -0.17, 0.06);
+  const magTip = new THREE.Mesh(new THREE.BoxGeometry(0.044*S, 0.020*S, 0.057*S), gripMat);
+  magTip.position.set(0, -0.19*S, 0.06*S);
   weaponGroup.add(magTip);
 
-  // Pistol grip (right hand grips here)
-  const pgrip = new THREE.Mesh(new THREE.BoxGeometry(0.030, 0.110, 0.040), gripMat);
-  pgrip.position.set(0, -0.085, -0.06);
+  // Pistol grip
+  const pgrip = new THREE.Mesh(new THREE.BoxGeometry(0.034*S, 0.12*S, 0.044*S), gripMat);
+  pgrip.position.set(0, -0.09*S, -0.06*S);
   pgrip.rotation.x = -0.15;
   weaponGroup.add(pgrip);
 
   // Trigger guard
-  const triggerGuard = new THREE.Mesh(new THREE.TorusGeometry(0.022, 0.005, 6, 12, Math.PI), metalMat);
+  const triggerGuard = new THREE.Mesh(new THREE.TorusGeometry(0.025*S, 0.006*S, 6, 12, Math.PI), metalMat);
   triggerGuard.rotation.y = Math.PI / 2;
   triggerGuard.rotation.z = Math.PI;
-  triggerGuard.position.set(0, -0.045, -0.03);
+  triggerGuard.position.set(0, -0.05*S, -0.03*S);
   weaponGroup.add(triggerGuard);
 
-  // Stock (rear)
-  const stock = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.070, 0.18), polyMat);
-  stock.position.set(0, 0.005, -0.20);
+  // Stock
+  const stock = new THREE.Mesh(new THREE.BoxGeometry(0.050*S, 0.078*S, 0.20*S), polyMat);
+  stock.position.set(0, 0.005*S, -0.22*S);
   weaponGroup.add(stock);
-  // Cheek riser
-  const cheek = new THREE.Mesh(new THREE.BoxGeometry(0.040, 0.020, 0.16), gripMat);
-  cheek.position.set(0, 0.045, -0.20);
+  const cheek = new THREE.Mesh(new THREE.BoxGeometry(0.044*S, 0.022*S, 0.18*S), gripMat);
+  cheek.position.set(0, 0.050*S, -0.22*S);
   weaponGroup.add(cheek);
-  // Butt pad
-  const buttPad = new THREE.Mesh(new THREE.BoxGeometry(0.046, 0.082, 0.020), gripMat);
-  buttPad.position.set(0, 0.005, -0.30);
+  const buttPad = new THREE.Mesh(new THREE.BoxGeometry(0.052*S, 0.090*S, 0.022*S), gripMat);
+  buttPad.position.set(0, 0.005*S, -0.33*S);
   weaponGroup.add(buttPad);
 
-  // Crimson laser stripe along rail (signature accent)
-  const laserStripe = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.005, 0.32), redMat);
-  laserStripe.position.set(0.022, 0.030, 0.10);
+  // Laser stripe
+  const laserStripe = new THREE.Mesh(new THREE.BoxGeometry(0.016*S, 0.006*S, 0.36*S), redMat);
+  laserStripe.position.set(0.024*S, 0.034*S, 0.10*S);
   weaponGroup.add(laserStripe);
 
-  // Muzzle flash anchor (used by shoot fx)
+  // Muzzle flash anchor
   const muzzleAnchor = new THREE.Object3D();
-  muzzleAnchor.position.set(0, 0.012, 0.58);
+  muzzleAnchor.position.set(0, 0.014*S, 0.64*S);
   weaponGroup.add(muzzleAnchor);
-
-  root.add(weaponGroup);
 
   // ── Glowing strips (emissive red, always visible) ─────────────────────
   const glowMat = new THREE.MeshBasicMaterial({ color: 0xff2200 });
 
   // Leg strips (outer side)
   [leftLeg, rightLeg].forEach((leg, i) => {
-    const strip = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.50, 0.04), glowMat);
-    strip.position.set(i === 0 ? -0.06 : 0.06, 0, 0.04);
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(0.025*S, 0.56*S, 0.05*S), glowMat);
+    strip.position.set(i === 0 ? -0.07*S : 0.07*S, 0, 0.05*S);
     leg.add(strip);
   });
 
   // Torso side strips
-  [-0.18, 0.18].forEach(sx => {
-    const strip = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.36, 0.04), glowMat);
-    strip.position.set(sx, 0, 0.08);
+  [-0.21*S, 0.21*S].forEach(sx => {
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(0.025*S, 0.42*S, 0.05*S), glowMat);
+    strip.position.set(sx, 0, 0.09*S);
     torso.add(strip);
   });
 
   // Arm strips
   [leftArm, rightArm].forEach(arm => {
-    const strip = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.24, 0.03), glowMat);
-    strip.position.set(0, -0.30, 0.05);
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(0.025*S, 0.28*S, 0.035*S), glowMat);
+    strip.position.set(0, -0.34*S, 0.06*S);
     arm.add(strip);
   });
 
   // Helmet strip
-  const helmStrip = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.02, 0.04), glowMat);
-  helmStrip.position.set(0, -0.08, 0.13);
+  const helmStrip = new THREE.Mesh(new THREE.BoxGeometry(0.28*S, 0.025*S, 0.05*S), glowMat);
+  helmStrip.position.set(0, -0.10*S, 0.14*S);
   headGroup.add(helmStrip);
 
   // Back spine strip
-  const spineStrip = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.40, 0.02), glowMat);
-  spineStrip.position.set(0, 0, -0.10);
+  const spineStrip = new THREE.Mesh(new THREE.BoxGeometry(0.035*S, 0.46*S, 0.025*S), glowMat);
+  spineStrip.position.set(0, 0, -0.11*S);
   torso.add(spineStrip);
 
   // ── Damage number anchor ──────────────────────────────────────────────
   const dmgAnchor = new THREE.Object3D();
-  dmgAnchor.position.set(0, 1.95, 0);
+  dmgAnchor.position.set(0, 2.20*S, 0);
   root.add(dmgAnchor);
 
   root.position.set(0, 0, 0);
@@ -1334,8 +1385,8 @@ function buildRemotePlayerModel(id) {
     hpFill: null, hpBg: dmgAnchor, nameTag: null,
     hp: 100, shield: 100,
     walkCycle: 0,
-    x: 0, y: 1.7, z: 0, yaw: 0, pitch: 0,
-    tx: 0, ty: 1.7, tz: 0, tyaw: 0, tpitch: 0,
+    x: 0, y: 2.3, z: 0, yaw: 0, pitch: 0,
+    tx: 0, ty: 2.3, tz: 0, tyaw: 0, tpitch: 0,
     dead: false,
     id,
   };
@@ -1363,21 +1414,22 @@ function updateRemotePlayers(dt) {
     rp.pitch = rp.pitch + (rp.tpitch - rp.pitch)  * LERP;
 
     // Feet Y = camera Y - PLAYER_HEIGHT
-    rp.mesh.position.set(rp.x, rp.y - 1.7, rp.z);
+    rp.mesh.position.set(rp.x, rp.y - PLAYER_HEIGHT, rp.z);
     rp.mesh.rotation.y = rp.yaw + Math.PI;
     rp.headGroup.rotation.x = rp.pitch;
     // Weapon aims where the player looks (pitch). Slight downward bias for shoulder rest.
     if (rp.weaponGroup) rp.weaponGroup.rotation.x = rp.pitch;
 
-    // Walk animation — taller legs need bigger stride
+    // Walk animation
     const moving = Math.abs(rp.tx - rp.x) > 0.01 || Math.abs(rp.tz - rp.z) > 0.01;
     if (moving) {
       rp.walkCycle += dt * 8;
       const sw = Math.sin(rp.walkCycle) * 0.55;
       rp.leftLeg.rotation.x  =  sw;
       rp.rightLeg.rotation.x = -sw;
-      rp.leftArm.rotation.x  = -sw * 0.4;
-      rp.rightArm.rotation.x =  sw * 0.4;
+      // Arms stay mostly locked in firing pose — minimal sway
+      rp.leftArm.rotation.x  = -sw * 0.08;
+      rp.rightArm.rotation.x =  sw * 0.08;
     } else {
       rp.leftLeg.rotation.x  *= 0.85;
       rp.rightLeg.rotation.x *= 0.85;
@@ -1394,10 +1446,16 @@ function updateRemotePlayers(dt) {
 function checkPVPHit(rayOrigin, rayDir) {
   const ray = new THREE.Raycaster(rayOrigin, rayDir, 0, 80);
 
-  // Collect wall/structure meshes once for occlusion check
+  // Collect player meshes to exclude from wall check
+  const playerMeshSet = new Set();
+  for (const rp of Object.values(remotePlayers)) {
+    rp.mesh.traverse(c => { if (c.isMesh) playerMeshSet.add(c); });
+  }
+
+  // Collect wall/structure meshes once for occlusion check (exclude player meshes)
   const structureMeshes = [];
   scene.traverse(obj => {
-    if (obj.isMesh && obj.geometry && obj.geometry.type === "BoxGeometry") {
+    if (obj.isMesh && obj.geometry && obj.geometry.type === "BoxGeometry" && !playerMeshSet.has(obj)) {
       structureMeshes.push(obj);
     }
   });
@@ -1550,11 +1608,11 @@ socket.on("pvp:opponentJoined", ({ id, player }) => {
   const rp = remotePlayers[id];
   // Place at their spawn immediately (no lerp lag on first frame)
   rp.x  = rp.tx  = player.x || 0;
-  rp.y  = rp.ty  = player.y || 1.7;
+  rp.y  = rp.ty  = player.y || 2.3;
   rp.z  = rp.tz  = player.z || 0;
   rp.yaw  = rp.tyaw  = player.yaw   || 0;
   rp.pitch = rp.tpitch = player.pitch || 0;
-  rp.mesh.position.set(rp.x, rp.y - 1.7, rp.z);
+  rp.mesh.position.set(rp.x, rp.y - PLAYER_HEIGHT, rp.z);
   rp.mesh.rotation.y = rp.yaw + Math.PI;
   updateOppHPBar(100);
 });
@@ -1639,7 +1697,7 @@ socket.on("pvp:start", ({
     rp.hp = 100; rp.shield = 100;
     rp.mesh.rotation.z = 0;
     rp.x = rp.tx; rp.y = rp.ty; rp.z = rp.tz;
-    rp.mesh.position.set(rp.x, rp.y - 1.7, rp.z);
+    rp.mesh.position.set(rp.x, rp.y - PLAYER_HEIGHT, rp.z);
     updateRemoteHPBar(rp);
   }
   updateOppHPBar(100);
@@ -1826,6 +1884,10 @@ socket.on("pvp:playerDied", ({ deadId, killerId }) => {
   // Check if match is over (first to 5)
   if (pvpMyScore >= PVP_WIN_SCORE || pvpOppScore >= PVP_WIN_SCORE) {
     const won = pvpMyScore >= PVP_WIN_SCORE;
+    state.gameOver = true;
+    // Hide pause menu if it was showing
+    gamePaused = false;
+    document.getElementById('pause-overlay').style.display = 'none';
     const resultHtml = won
       ? `<div style="font-size:48px;letter-spacing:8px;color:#ffcc00;margin-bottom:8px;">VICTORY</div>
          <div style="font-size:14px;letter-spacing:2px;color:#fff;margin-bottom:6px;">${playerName} WINS</div>
@@ -1933,9 +1995,12 @@ function pvpShoot() {
       ? SPREAD_ADS_MULT
       : 1.0;
 
+  // Sniper: perfectly accurate when scoped (ADS > 0.85), huge spread when hip-firing
   const spread =
-    currentWeapon.spread +
-    currentSpread * 0.06 * adsMult;
+    (currentWeapon.name === 'sniper' && adsProgress > 0.85)
+      ? 0
+      : currentWeapon.spread +
+        currentSpread * 0.06 * adsMult;
 
   for (let p = 0; p < pellets; p++) {
 
@@ -2409,7 +2474,7 @@ scene.fog = new THREE.FogExp2(0x080810, 0.014);
 scene.background = new THREE.Color(0x080810);
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 120);
-camera.position.set(0, 1.7, 0);
+camera.position.set(0, 2.3, 0);
 
 // ─────────────────────────────────────────────
 //  LIGHTING
@@ -5586,7 +5651,7 @@ function finishReload() {
 //  PLAYER MOVEMENT
 // ─────────────────────────────────────────────
 const PLAYER_RADIUS = 0.4;
-const PLAYER_HEIGHT = 1.7;
+const PLAYER_HEIGHT = 2.3;
 
 const STEP_HEIGHT = 0.65; // max height player can auto-step up
 
@@ -5867,10 +5932,13 @@ function triggerGameOver() {
 // ─────────────────────────────────────────────
 // ── Pause state ───────────────────────────────────────────────────────────
 let gamePaused = false;
+let pausedAt = 0;
 
 function pauseGame() {
   if (!state.running || state.gameOver) return;
   gamePaused = true;
+  pausedAt = performance.now();
+  document.getElementById('lock-overlay').style.display = 'none';
   document.exitPointerLock();
   document.getElementById('pause-overlay').style.display = 'flex';
 }
@@ -5896,8 +5964,9 @@ document.getElementById('pause-leave-btn').addEventListener('click', () => {
 // ── Load custom keybinds from localStorage ────────────────────────────────
 document.addEventListener('keydown', e => {
   if (e.code === 'Escape') {
-    if (gamePaused) resumeGame();
-    else pauseGame();
+    // Only handle resume — pausing is triggered by pointerlockchange when browser exits pointer lock
+    // Skip if pause just happened on this same ESC press (within 100ms)
+    if (gamePaused && performance.now() - pausedAt > 100) resumeGame();
     return;
   }
   state.keys[e.code] = true;
@@ -5911,7 +5980,7 @@ document.addEventListener('keydown', e => {
 document.addEventListener('keyup', e => { state.keys[e.code] = false; });
 
 document.addEventListener('mousedown', e => {
-  if (!state.running) return;
+  if (!state.running || gamePaused) return;
   const btn = 'Mouse' + e.button;
   if (btn === KB.shoot) {
     if (document.pointerLockElement !== canvas) {
@@ -5956,14 +6025,14 @@ document.addEventListener('mousemove', e => {
   state.pitch = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, state.pitch));
 });
 
-// FIX: Show overlay when pointer lock is lost during play so user knows to click
 document.addEventListener('pointerlockchange', () => {
   const overlay = document.getElementById('lock-overlay');
   if (document.pointerLockElement === canvas) {
     overlay.style.display = 'none';
   } else if (state.running && !state.gameOver) {
-    // Only show overlay if game is actually running (not on start/gameover screens)
-    overlay.style.display = 'flex';
+    // Pointer lock lost during gameplay — always show pause menu directly
+    overlay.style.display = 'none';
+    if (!gamePaused) pauseGame();
   } else {
     overlay.style.display = 'none';
   }
@@ -5974,7 +6043,7 @@ document.getElementById('lock-overlay').addEventListener('click', () => {
 });
 
 canvas.addEventListener('click', () => {
-  if (state.running && !state.gameOver) canvas.requestPointerLock();
+  if (state.running && !state.gameOver && !gamePaused) canvas.requestPointerLock();
 });
 
 window.addEventListener('resize', () => {

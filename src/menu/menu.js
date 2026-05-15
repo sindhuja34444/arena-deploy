@@ -359,12 +359,14 @@ function avatarHTML(u, online) {
 function renderFriendRow(u, actions = '') {
   return `
     <div class="halo-list-row" data-user="${u.userId}">
-      ${avatarHTML(u, u.online)}
-      <div class="halo-list-meta">
-        <div class="halo-list-name">${escapeHtml(u.username)}</div>
-        <div class="halo-list-sub">${u.online ? 'Online' : 'Offline'} · ${u.elo} ELO</div>
+      <div class="halo-list-row-top">
+        ${avatarHTML(u, u.online)}
+        <div class="halo-list-meta">
+          <div class="halo-list-name">${escapeHtml(u.username)}</div>
+          <div class="halo-list-sub">${u.online ? 'Online' : 'Offline'} · ${u.elo} ELO</div>
+        </div>
       </div>
-      <div class="halo-list-actions">${actions}</div>
+      ${actions ? `<div class="halo-list-actions">${actions}</div>` : ''}
     </div>
   `;
 }
