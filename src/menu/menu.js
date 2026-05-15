@@ -56,6 +56,29 @@ function setActiveItem(el) {
   el.classList.add('active');
 }
 function play() {
+  if (currentPartyId && activeMode === 'bots') {
+    toast('Bots mode not supported in a party', 'error');
+    return;
+  }
+  if (currentPartyId && activeMode === 'pvp') {
+    // Check if all members are ready before starting
+    const playBtn = document.getElementById('btn-play');
+    if (playBtn.style.opacity === '0.4') {
+      toast('Waiting for party members to ready up', 'error');
+      return;
+    }
+    // Leader starts the match — write matchCode to Convex so members auto-join
+    const code = 'party-' + currentPartyId.slice(-8);
+    const convex = getConvex();
+    if (convex) {
+      convex.mutation(api.parties.startMatch, { matchCode: code })
+        .then(() => { location.href = `/pvp/?code=${code}`; })
+        .catch(e => toast(e.message?.replace(/^.*Error: /, '') || 'Failed to start', 'error'));
+    } else {
+      location.href = `/pvp/?code=${code}`;
+    }
+    return;
+  }
   if (activeMode === 'bots') location.href = '/bots/';
   else if (activeMode === 'pvp') location.href = '/lobby/';
 }
@@ -70,6 +93,7 @@ function escAction() {
   if (listeningKb) { listeningKb = null; renderKb(); return; }
   if (kbOverlay.classList.contains('show'))     { kbOverlay.classList.remove('show'); return; }
   if (inviteOverlay.classList.contains('show')) { inviteOverlay.classList.remove('show'); return; }
+  if (document.getElementById('social-sidebar').classList.contains('open')) { document.getElementById('social-sidebar').classList.remove('open'); return; }
   if (escOverlay.classList.contains('show'))    { escOverlay.classList.remove('show'); return; }
   if (activeTab !== 'play') { setTab('play'); return; }
   escOverlay.classList.add('show');
@@ -108,6 +132,13 @@ function refreshInvite() {
 }
 function openInvite() { refreshInvite(); inviteOverlay.classList.add('show'); }
 document.getElementById('invite-close').onclick = () => inviteOverlay.classList.remove('show');
+document.getElementById('topright-invite').onclick = () => {
+  document.getElementById('social-sidebar').classList.toggle('open');
+  refreshFriends();
+};
+document.getElementById('social-sidebar-close').onclick = () => {
+  document.getElementById('social-sidebar').classList.remove('open');
+};
 document.getElementById('invite-regen').onclick = refreshInvite;
 document.getElementById('invite-copy').onclick = async () => {
   try {
@@ -126,6 +157,73 @@ function toast(msg, kind = '') {
   document.body.appendChild(t);
   setTimeout(() => t.remove(), 2500);
 }
+
+// ── Loadout selection ───────────────────────────────────
+const WEAPON_INFO = {
+  rifle:   { name: 'Rifle',   damage: '25',    ammo: '30', reload: '1.8s', fire: 'Semi-auto', type: 'Assault Rifle' },
+  smg:     { name: 'SMG',     damage: '14',    ammo: '35', reload: '1.5s', fire: 'Full-auto', type: 'Submachine Gun' },
+  shotgun: { name: 'Shotgun', damage: '21×5',  ammo: '6',  reload: '1.6s', fire: 'Pump',      type: 'Shotgun' },
+  sniper:  { name: 'Sniper',  damage: '150',   ammo: '3',  reload: '2.8s', fire: 'Bolt-action', type: 'Sniper Rifle' },
+};
+
+function initLoadoutUI() {
+  const slot1 = localStorage.getItem('arenaLoadoutSlot1') || 'rifle';
+  const slot2 = localStorage.getItem('arenaLoadoutSlot2') || 'shotgun';
+
+  // Highlight saved selections
+  document.querySelectorAll('.loadout-card').forEach(card => {
+    const s = card.dataset.slot;
+    const w = card.dataset.weapon;
+    card.classList.toggle('selected', (s === '1' && w === slot1) || (s === '2' && w === slot2));
+  });
+
+  // Show detail for slot 1 weapon initially
+  showWeaponDetail(slot1);
+
+  // Click handlers
+  document.querySelectorAll('.loadout-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const slot = card.dataset.slot;
+      const weapon = card.dataset.weapon;
+
+      // Don't allow same weapon in both slots
+      const otherSlot = slot === '1' ? '2' : '1';
+      const otherWeapon = localStorage.getItem(slot === '1' ? 'arenaLoadoutSlot2' : 'arenaLoadoutSlot1') || (otherSlot === '1' ? 'rifle' : 'shotgun');
+      if (weapon === otherWeapon) {
+        toast('Already equipped in the other slot', 'error');
+        return;
+      }
+
+      // Save
+      localStorage.setItem(slot === '1' ? 'arenaLoadoutSlot1' : 'arenaLoadoutSlot2', weapon);
+
+      // Update selection visuals for this slot
+      document.querySelectorAll(`.loadout-card[data-slot="${slot}"]`).forEach(c =>
+        c.classList.toggle('selected', c.dataset.weapon === weapon));
+
+      showWeaponDetail(weapon);
+      toast(`Slot ${slot}: ${WEAPON_INFO[weapon].name}`, 'success');
+    });
+
+    // Hover to preview detail
+    card.addEventListener('mouseenter', () => showWeaponDetail(card.dataset.weapon));
+  });
+}
+
+function showWeaponDetail(weapon) {
+  const info = WEAPON_INFO[weapon];
+  if (!info) return;
+  document.getElementById('loadout-detail-name').textContent = info.name;
+  document.getElementById('loadout-detail-stats').innerHTML = `
+    <div>TYPE <span class="stat-val">${info.type}</span></div>
+    <div>FIRE <span class="stat-val">${info.fire}</span></div>
+    <div>DAMAGE <span class="stat-val">${info.damage}</span></div>
+    <div>MAGAZINE <span class="stat-val">${info.ammo} RDS</span></div>
+    <div>RELOAD <span class="stat-val">${info.reload}</span></div>
+  `;
+}
+
+initLoadoutUI();
 
 // ── Keybinds ───────────────────────────────────────────
 const DEFAULT_BINDS = {
@@ -178,14 +276,6 @@ document.getElementById('kb-close').onclick = () => kbOverlay.classList.remove('
 document.getElementById('kb-reset').onclick = () => { currentBinds = { ...DEFAULT_BINDS }; saveLocalBinds(); renderKb(); };
 document.getElementById('kb-save').onclick  = () => { saveLocalBinds(); kbOverlay.classList.remove('show'); toast('Keybinds saved', 'success'); };
 
-// ── News card → quick PVP ──────────────────────────────
-document.getElementById('news-card').onclick = () => {
-  activeMode = 'pvp';
-  setTab('play');
-  const pvpItem = document.querySelector('[data-action="mode-pvp"]');
-  if (pvpItem) setActiveItem(pvpItem);
-};
-
 // ── Social: friends, requests, search ──────────────────
 document.querySelectorAll('.halo-subtab').forEach(b => {
   b.addEventListener('click', () => {
@@ -196,9 +286,17 @@ document.querySelectorAll('.halo-subtab').forEach(b => {
   });
 });
 document.getElementById('friends-shortcut').onclick = () => {
-  setTab('social');
-  const reqsBtn = document.querySelector('[data-subtab="requests"]');
-  if (parseInt(document.getElementById('req-count').textContent || '0') > 0) reqsBtn.click();
+  document.getElementById('social-sidebar').classList.add('open');
+  refreshFriends();
+};
+// Showcase plus buttons → open social sidebar
+document.getElementById('showcase-plus-left').onclick = () => {
+  document.getElementById('social-sidebar').classList.add('open');
+  refreshFriends();
+};
+document.getElementById('showcase-plus-right').onclick = () => {
+  document.getElementById('social-sidebar').classList.add('open');
+  refreshFriends();
 };
 
 const friendsList  = document.getElementById('friends-list');
@@ -280,13 +378,13 @@ document.body.addEventListener('click', async (e) => {
                             { friendshipId: btn.dataset.id });
       toast(act === 'decline' ? 'Request declined' : 'Friend removed');
     } else if (act === 'invite') {
-      // Generate code, set in invite overlay, copy
-      const code = genCode();
-      const url  = `${location.origin}/lobby/?code=${code}`;
+      // Send a party invite to the friend via Convex
       try {
-        await navigator.clipboard.writeText(url);
-        toast(`Invite link copied — share with ${btn.dataset.name}`, 'success');
-      } catch { openInvite(); }
+        await convex.mutation(api.parties.invite, { targetUsername: btn.dataset.name });
+        toast(`Invite sent to ${btn.dataset.name}`, 'success');
+      } catch (err) {
+        toast(err.message?.replace(/^.*Error: /, '') || 'Invite failed', 'error');
+      }
     } else if (act === 'send-request') {
       await convex.mutation(api.friends.sendRequest, { targetUsername: btn.dataset.name });
       toast(`Request sent to ${btn.dataset.name}`, 'success');
@@ -349,6 +447,13 @@ function applyName(name) {
   const av = document.getElementById('profile-avatar');
   if (av && !av.querySelector('img')) av.textContent = name.slice(0, 1).toUpperCase();
   if (!nameInput.value) nameInput.value = name;
+  // Update center showcase
+  const showcaseName = document.getElementById('showcase-name');
+  const showcaseInitial = document.getElementById('showcase-initial');
+  if (showcaseName) showcaseName.textContent = name;
+  if (showcaseInitial && !document.getElementById('showcase-avatar').querySelector('img')) {
+    showcaseInitial.textContent = name.slice(0, 1).toUpperCase();
+  }
 }
 applyName(localStorage.getItem('arenaPlayerName') || '');
 
@@ -388,6 +493,7 @@ async function bootProfile() {
   refreshSaveBtn();
   if (auth.user.imageUrl) {
     document.getElementById('profile-avatar').innerHTML = `<img src="${auth.user.imageUrl}" alt="">`;
+    document.getElementById('showcase-avatar').innerHTML = `<img src="${auth.user.imageUrl}" alt="">`;
   }
   document.getElementById('account-email').textContent = auth.user.primaryEmailAddress?.emailAddress || '—';
   document.getElementById('signout').onclick   = () => auth.clerk.signOut().then(() => location.href = '/');
@@ -442,3 +548,266 @@ function startOnlineCount() {
 }
 
 setTab('play');
+
+// ── Party system — poll for invites & party state ─────
+let currentPartyId = null;
+let currentInviteId = null;
+
+async function pollParty() {
+  const convex = getConvex();
+  if (!convex) return;
+  try {
+    // Check for incoming invites
+    const invites = await convex.query(api.parties.myInvites, {});
+    const notif = document.getElementById('invite-notification');
+    if (invites.length > 0 && !currentInviteId) {
+      const inv = invites[0];
+      currentInviteId = inv.inviteId;
+      document.getElementById('invite-notif-text').textContent = `${inv.fromUsername} invited you to party`;
+      notif.style.display = 'flex';
+    } else if (invites.length === 0) {
+      currentInviteId = null;
+      notif.style.display = 'none';
+    }
+
+    // Check party state
+    const party = await convex.query(api.parties.myParty, {});
+    const leaveBtn = document.getElementById('leave-room-btn');
+    const readyBtn = document.getElementById('ready-btn');
+    const plusLeft = document.getElementById('showcase-plus-left');
+    const plusRight = document.getElementById('showcase-plus-right');
+    const myName = localStorage.getItem('arenaPlayerName') || '';
+
+    if (party && party.members.length > 1) {
+      currentPartyId = party.partyId;
+      leaveBtn.style.display = 'block';
+
+      const others = party.members.filter(m => m.username !== myName);
+      const showcase = document.getElementById('player-showcase');
+      const crownEl = document.getElementById('showcase-crown');
+      const readyMembers = party.readyMembers || [];
+
+      // Determine if I'm the leader (host)
+      const meEntry = party.members.find(m => m.username === myName);
+      const iAmLeader = meEntry && meEntry.userId === party.hostId;
+      const iAmReady = meEntry && readyMembers.includes(meEntry.userId);
+
+      // Show crown on my card if I'm the leader
+      if (crownEl) crownEl.style.display = iAmLeader ? 'block' : 'none';
+
+      // Hide Drop In for non-leaders; show ready button instead
+      const playBtn = document.getElementById('btn-play');
+      if (iAmLeader) {
+        readyBtn.style.display = 'none';
+        playBtn.style.display = '';
+      } else {
+        readyBtn.style.display = 'block';
+        readyBtn.textContent = iAmReady ? '✕ Cancel' : 'Ready Up';
+        readyBtn.classList.toggle('is-ready', iAmReady);
+        playBtn.style.display = 'none';
+        const tag = document.getElementById('showcase-tag');
+        if (tag) tag.textContent = iAmReady ? 'Ready for combat' : 'Standing by';
+      }
+
+      // Auto-redirect non-leaders when leader starts the match
+      if (!iAmLeader && party.matchCode) {
+        location.href = `/pvp/?code=${party.matchCode}`;
+        return;
+      }
+
+      // Check if all non-host members are ready (for leader's Drop In button)
+      const nonHostMembers = party.members.filter(m => m.userId !== party.hostId);
+      const allReady = nonHostMembers.length > 0 && nonHostMembers.every(m => readyMembers.includes(m.userId));
+      if (iAmLeader && !allReady) {
+        playBtn.style.opacity = '0.4';
+        playBtn.title = 'Waiting for party members to ready up';
+      } else {
+        playBtn.style.opacity = '1';
+        playBtn.title = '';
+      }
+
+      // Build a fingerprint to detect if members changed (avoid DOM rebuild flicker)
+      const slotFingerprint = others.map(m => m.userId).join(',');
+      const existingSlots = document.querySelectorAll('.party-slot');
+      const existingFingerprint = Array.from(existingSlots).map(el => el.dataset.userId || '').join(',');
+
+      if (slotFingerprint !== existingFingerprint) {
+        // Members changed — rebuild slots
+        existingSlots.forEach(el => el.remove());
+
+        others.forEach((m, i) => {
+          const side = i === 0 ? 'left' : 'right';
+          const plusBtn = i === 0 ? plusLeft : plusRight;
+          if (plusBtn) plusBtn.style.display = 'none';
+
+          const isLeader = m.userId === party.hostId;
+          const memberReady = readyMembers.includes(m.userId);
+          const slot = document.createElement('div');
+          slot.className = `party-slot ${side}`;
+          slot.dataset.userId = m.userId;
+          slot.innerHTML = `
+            <div class="party-slot-avatar" style="position:relative;">
+              ${isLeader ? '<span class="leader-crown">👑</span>' : ''}
+              ${m.avatarUrl
+                ? `<img src="${m.avatarUrl}" alt="">`
+                : `<span class="ps-initial">${(m.username || '?').slice(0,1).toUpperCase()}</span>`
+              }
+            </div>
+            <div class="party-slot-name">${escapeHtml(m.username)}</div>
+            <div class="party-slot-tag">${isLeader ? '★ LEADER · ' : ''}${m.elo} ELO</div>
+            ${!isLeader ? `<div class="party-slot-ready ${memberReady ? 'is-ready' : 'not-ready'}">${memberReady ? '✓ READY' : '○ NOT READY'}</div>` : ''}
+          `;
+          showcase.appendChild(slot);
+        });
+      } else {
+        // Same members — just update ready status text in place (no flicker)
+        existingSlots.forEach(el => {
+          const uid = el.dataset.userId;
+          const m = others.find(o => o.userId === uid);
+          if (!m) return;
+          const isLeader = m.userId === party.hostId;
+          if (isLeader) return;
+          const readyEl = el.querySelector('.party-slot-ready');
+          if (!readyEl) return;
+          const memberReady = readyMembers.includes(m.userId);
+          readyEl.className = `party-slot-ready ${memberReady ? 'is-ready' : 'not-ready'}`;
+          readyEl.textContent = memberReady ? '✓ READY' : '○ NOT READY';
+        });
+      }
+
+      // Hide remaining + if both slots filled
+      if (others.length >= 2) {
+        if (plusLeft) plusLeft.style.display = 'none';
+        if (plusRight) plusRight.style.display = 'none';
+      } else if (others.length === 1) {
+        const remainingPlus = others[0] ? plusRight : plusLeft;
+        if (remainingPlus) remainingPlus.style.display = 'flex';
+      }
+    } else {
+      currentPartyId = null;
+      leaveBtn.style.display = 'none';
+      readyBtn.style.display = 'none';
+      // Remove party slots
+      document.querySelectorAll('.party-slot').forEach(el => el.remove());
+      // Reset play button
+      const playBtn = document.getElementById('btn-play');
+      playBtn.style.opacity = '1';
+      playBtn.style.display = '';
+      playBtn.title = '';
+      // Hide crown when not in a party
+      const crownEl = document.getElementById('showcase-crown');
+      if (crownEl) crownEl.style.display = 'none';
+      // Show both + icons again
+      if (plusLeft) plusLeft.style.display = 'flex';
+      if (plusRight) plusRight.style.display = 'flex';
+    }
+  } catch (e) { /* silent */ }
+}
+
+// Accept/decline invite buttons
+document.getElementById('invite-accept-btn').onclick = async () => {
+  if (!currentInviteId) return;
+  const convex = getConvex();
+  if (!convex) return;
+  try {
+    await convex.mutation(api.parties.acceptInvite, { inviteId: currentInviteId });
+    toast('Joined party!', 'success');
+    currentInviteId = null;
+    document.getElementById('invite-notification').style.display = 'none';
+    pollParty();
+  } catch (e) { toast(e.message?.replace(/^.*Error: /, '') || 'Failed', 'error'); }
+};
+
+document.getElementById('invite-decline-btn').onclick = async () => {
+  if (!currentInviteId) return;
+  const convex = getConvex();
+  if (!convex) return;
+  try {
+    await convex.mutation(api.parties.declineInvite, { inviteId: currentInviteId });
+    currentInviteId = null;
+    document.getElementById('invite-notification').style.display = 'none';
+  } catch (e) { /* silent */ }
+};
+
+// Leave room button
+document.getElementById('leave-room-btn').onclick = async () => {
+  const convex = getConvex();
+  if (!convex) return;
+  try {
+    await convex.mutation(api.parties.leave, {});
+    toast('Left the room');
+    pollParty();
+  } catch (e) { toast('Failed to leave', 'error'); }
+};
+
+// Ready button toggle
+let myReadyState = false;
+function playReadySound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.3, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+    g.connect(ctx.destination);
+    const o1 = ctx.createOscillator();
+    o1.type = 'sine'; o1.frequency.value = 660;
+    o1.connect(g); o1.start(ctx.currentTime); o1.stop(ctx.currentTime + 0.1);
+    const o2 = ctx.createOscillator();
+    o2.type = 'sine'; o2.frequency.value = 880;
+    o2.connect(g); o2.start(ctx.currentTime + 0.08); o2.stop(ctx.currentTime + 0.2);
+    const o3 = ctx.createOscillator();
+    o3.type = 'sine'; o3.frequency.value = 1100;
+    o3.connect(g); o3.start(ctx.currentTime + 0.15); o3.stop(ctx.currentTime + 0.3);
+  } catch (e) { /* silent */ }
+}
+function playCancelSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.25, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+    g.connect(ctx.destination);
+    const o1 = ctx.createOscillator();
+    o1.type = 'sine'; o1.frequency.value = 550;
+    o1.connect(g); o1.start(ctx.currentTime); o1.stop(ctx.currentTime + 0.1);
+    const o2 = ctx.createOscillator();
+    o2.type = 'sine'; o2.frequency.value = 380;
+    o2.connect(g); o2.start(ctx.currentTime + 0.07); o2.stop(ctx.currentTime + 0.18);
+  } catch (e) { /* silent */ }
+}
+document.getElementById('ready-btn').onclick = async () => {
+  const convex = getConvex();
+  if (!convex) return;
+  myReadyState = !myReadyState;
+  const btn = document.getElementById('ready-btn');
+  const tag = document.getElementById('showcase-tag');
+  if (myReadyState) {
+    playReadySound();
+    btn.textContent = '✕ Cancel';
+    btn.classList.add('is-ready');
+    if (tag) tag.textContent = 'Ready for combat';
+  } else {
+    playCancelSound();
+    btn.textContent = 'Ready Up';
+    btn.classList.remove('is-ready');
+    if (tag) tag.textContent = 'Standing by';
+  }
+  // Pop animation
+  btn.classList.remove('pop');
+  void btn.offsetWidth; // reflow to restart animation
+  btn.classList.add('pop');
+  try {
+    await convex.mutation(api.parties.setReady, { ready: myReadyState });
+    pollParty();
+  } catch (e) {
+    myReadyState = !myReadyState;
+    btn.textContent = myReadyState ? '✕ Cancel' : 'Ready Up';
+    btn.classList.toggle('is-ready', myReadyState);
+    toast('Failed to update ready state', 'error');
+  }
+};
+
+// Poll every 3 seconds for party updates
+setInterval(pollParty, 3000);
+// Initial poll after auth loads
+setTimeout(pollParty, 2000);

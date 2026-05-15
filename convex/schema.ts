@@ -73,4 +73,23 @@ export default defineSchema({
     lastSeen: v.number(),
   })
     .index('by_user', ['userId']),
+
+  parties: defineTable({
+    hostId:       v.id('users'),
+    members:      v.array(v.id('users')),
+    readyMembers: v.optional(v.array(v.id('users'))),
+    matchCode:    v.optional(v.string()),
+    createdAt:    v.number(),
+  })
+    .index('by_host', ['hostId']),
+
+  partyInvites: defineTable({
+    partyId:   v.id('parties'),
+    fromId:    v.id('users'),
+    toId:      v.id('users'),
+    status:    v.union(v.literal('pending'), v.literal('accepted'), v.literal('declined')),
+    createdAt: v.number(),
+  })
+    .index('by_to', ['toId', 'status'])
+    .index('by_party', ['partyId']),
 });

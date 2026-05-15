@@ -103,6 +103,48 @@
     display: none;
   }
 
+  /* Sniper scope overlay */
+  #sniper-scope {
+    position: absolute; inset: 0;
+    pointer-events: none; z-index: 10;
+  }
+  .scope-ring {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(80vh, 80vw); height: min(80vh, 80vw);
+    border-radius: 50%;
+    border: 2px solid rgba(200,200,200,0.6);
+    box-shadow: 0 0 0 2000px rgba(0,0,0,0.97);
+  }
+  .scope-cross-h {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(70vh, 70vw); height: 1px;
+    background: rgba(200,200,200,0.5);
+  }
+  .scope-cross-v {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 1px; height: min(70vh, 70vw);
+    background: rgba(200,200,200,0.5);
+  }
+  .scope-dot {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 4px; height: 4px; border-radius: 50%;
+    background: #ff2200;
+    box-shadow: 0 0 4px #ff2200, 0 0 8px #ff2200;
+  }
+  .scope-mil {
+    position: absolute; left: 50%;
+    transform: translateX(-50%);
+    width: 8px; height: 1px;
+    background: rgba(200,200,200,0.4);
+  }
+  .scope-mil-1 { top: calc(50% + 40px); }
+  .scope-mil-2 { top: calc(50% + 80px); }
+  .scope-mil-3 { top: calc(50% + 120px); }
+
   /* Minimap */
   #minimap-wrap {
     position: absolute; top: 16px; left: 16px;
@@ -644,62 +686,6 @@
   }
   @keyframes dmgFade { 0%{opacity:1;transform:translate(-50%,-50%) scale(1)} 100%{opacity:0;transform:translate(-50%,-50%) scale(1.4)} }
 
-  /* Capture zone progress bar */
-  #capture-progress-wrap {
-    position: absolute; top: 50%; left: 50%;
-    transform: translate(-50%, calc(-50% + 80px));
-    display: none; flex-direction: column; align-items: center; gap: 6px;
-    background: rgba(0,10,40,0.82); border: 1px solid rgba(68,170,255,0.7);
-    border-radius: 5px; padding: 8px 20px; pointer-events: none;
-    min-width: 220px;
-  }
-  #capture-progress-label {
-    font-size: 11px; letter-spacing: 3px; color: #88ddff; text-transform: uppercase;
-    white-space: nowrap;
-  }
-  #capture-progress-bar-bg {
-    width: 200px; height: 8px; background: rgba(255,255,255,0.1);
-    border: 1px solid rgba(68,170,255,0.4); border-radius: 4px; overflow: hidden;
-  }
-  #capture-progress-bar-fill {
-    height: 100%; width: 0%; background: linear-gradient(90deg, #0044ff, #44aaff);
-    border-radius: 4px; transition: width 0.1s linear;
-  }
-
-  /* Zone status indicators top-right */
-  #zone-status-wrap {
-    position: absolute; top: 16px; right: 200px;
-    display: flex; gap: 6px; align-items: center;
-  }
-  .zone-status-sq {
-    width: 18px; height: 18px; border-radius: 3px;
-    background: #222; border: 1px solid rgba(255,255,255,0.25);
-    transition: border-color 0.4s, box-shadow 0.4s;
-    position: relative; overflow: hidden;
-  }
-  .zone-sq-fill {
-    position: absolute; bottom: 0; left: 0; right: 0;
-    height: 0%;
-    background: rgba(68,170,255,0.6);
-    transition: height 0.3s linear;
-  }
-  .zone-status-sq.captured {
-    background: #0033cc; border-color: #44aaff;
-    box-shadow: 0 0 7px rgba(68,170,255,0.8);
-  }
-  .zone-status-sq.captured .zone-sq-fill {
-    height: 100%;
-    background: rgba(100,200,255,0.3);
-  }
-  .zone-status-sq.enemy-captured {
-    background: #660000; border-color: #ff4444;
-    box-shadow: 0 0 7px rgba(255,68,68,0.8);
-  }
-  .zone-status-sq.enemy-captured .zone-sq-fill {
-    height: 100%;
-    background: rgba(255,68,68,0.5);
-  }
-
   /* Click-to-look overlay shown when pointer lock is lost */
   #lock-overlay {
     position: fixed; inset: 0; z-index: 50;
@@ -781,6 +767,15 @@
     <div class="dot"></div>
   </div>
   <div id="ads-vignette"></div>
+  <div id="sniper-scope" style="display:none;">
+    <div class="scope-ring"></div>
+    <div class="scope-cross-h"></div>
+    <div class="scope-cross-v"></div>
+    <div class="scope-dot"></div>
+    <div class="scope-mil scope-mil-1"></div>
+    <div class="scope-mil scope-mil-2"></div>
+    <div class="scope-mil scope-mil-3"></div>
+  </div>
   <div id="reload-crosshair">
     <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
       <!-- Track -->
@@ -881,30 +876,13 @@
   <div id="inventory">
     <div class="inv-slot active" id="inv-slot-1">
       <div class="inv-key" id="hud-key-weapon1">1</div>
-      <svg viewBox="0 0 100 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="78" y="15" width="20" height="6" rx="3" fill="#1a1a1a"/>
-        <rect x="38" y="13" width="42" height="7" rx="1.5" fill="#1a1a1a"/>
-        <rect x="38" y="18" width="36" height="8" rx="1.5" fill="#4a4a4a"/>
-        <rect x="38" y="11" width="38" height="2.5" rx="0.5" fill="#cc1111"/>
-        <rect x="18" y="14" width="24" height="8" rx="1.5" fill="#3a3a3a"/>
-        <rect x="4" y="16" width="28" height="4" rx="2" fill="#1a1a1a"/>
-        <rect x="2" y="14.5" width="6" height="7" rx="1" fill="#cc1111"/>
-        <path d="M52 25 L52 35 Q52 36 50 36 L46 36 Q44 36 44 35 L44 27 Q44 25 46 25 Z" fill="#111"/>
-      </svg>
-      <div class="inv-label">Rifle</div>
+      <div id="inv-slot-1-svg"></div>
+      <div class="inv-label" id="inv-slot-1-label">Rifle</div>
     </div>
     <div class="inv-slot" id="inv-slot-2">
       <div class="inv-key" id="hud-key-weapon2">2</div>
-      <svg viewBox="0 0 100 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="74" y="14" width="24" height="8" rx="3" fill="#2a1a0a"/>
-        <rect x="36" y="12" width="42" height="12" rx="2" fill="#3a2a1a"/>
-        <rect x="10" y="11" width="66" height="3" rx="1" fill="#2a1a0a"/>
-        <rect x="14" y="17" width="20" height="7" rx="2" fill="#cc4400"/>
-        <rect x="2" y="14" width="26" height="8" rx="3" fill="#1a1a1a"/>
-        <rect x="1" y="13" width="5" height="10" rx="1.5" fill="#cc4400"/>
-        <path d="M56 23 L56 34 Q56 36 54 36 L50 36 Q48 36 48 34 L48 25 Q48 23 50 23 Z" fill="#2a1a0a"/>
-      </svg>
-      <div class="inv-label">Shotgun</div>
+      <div id="inv-slot-2-svg"></div>
+      <div class="inv-label" id="inv-slot-2-label">Shotgun</div>
     </div>
     <!-- Ability slot -->
     <div id="ability-slot" class="ready">
@@ -937,21 +915,7 @@
     <span class="pk-text">🛡 Pick up Shield (+20)</span>
   </div>
 
-  <!-- Capture zone progress bar (shown when inside uncaptured zone) -->
-  <div id="capture-progress-wrap">
-    <div id="capture-progress-label">CAPTURING... 0%</div>
-    <div id="capture-progress-bar-bg">
-      <div id="capture-progress-bar-fill"></div>
-    </div>
-  </div>
-
-  <!-- Zone status indicators top-right -->
-  <div id="zone-status-wrap">
-    <div class="zone-status-sq" id="zone-sq-0"><div class="zone-sq-fill" id="zone-fill-0"></div></div>
-    <div class="zone-status-sq" id="zone-sq-1"><div class="zone-sq-fill" id="zone-fill-1"></div></div>
-    <div class="zone-status-sq" id="zone-sq-2"><div class="zone-sq-fill" id="zone-fill-2"></div></div>
-    <div class="zone-status-sq" id="zone-sq-3"><div class="zone-sq-fill" id="zone-fill-3"></div></div>
-  </div>
+  <!-- Capture zone elements removed for PVP mode -->
 </div>
 
 <!-- Click-to-look overlay -->
@@ -981,6 +945,8 @@
 
 <script type="module">
   import { initClerk, signIn, getToken } from '../shared/auth.js';
+  import { getConvex } from '../shared/convex.js';
+  import { api } from '../../convex/_generated/api.js';
   try {
     const c = await initClerk();
     if (!c.user) { signIn({ redirectUrl: '/pvp/' }); }
@@ -991,6 +957,9 @@
       localStorage.setItem('arenaPlayerName', username);
     }
   } catch (e) { console.warn('auth skipped', e?.message); }
+  // Expose Convex + api for stat reporting from non-module script
+  window.__arenaConvex = getConvex();
+  window.__arenaApi = api;
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
@@ -1043,6 +1012,22 @@ window.addEventListener('load', () => {
   if (el('hud-key-ability')) el('hud-key-ability').textContent = keyLabel(KB.ability);
   if (el('hud-key-heal'))    el('hud-key-heal').textContent    = keyLabel(KB.heal);
   if (el('hud-key-pickup'))  el('hud-key-pickup').textContent  = keyLabel(KB.pickup);
+  // Update slot labels based on loadout
+  const slot1Label = el('inv-slot-1-label');
+  const slot2Label = el('inv-slot-2-label');
+  if (slot1Label) slot1Label.textContent = {rifle:'Rifle',smg:'SMG',shotgun:'Shotgun',sniper:'Sniper'}[LOADOUT_SLOT1] || 'Rifle';
+  if (slot2Label) slot2Label.textContent = {rifle:'Rifle',smg:'SMG',shotgun:'Shotgun',sniper:'Sniper'}[LOADOUT_SLOT2] || 'Shotgun';
+  // Update slot SVG icons based on loadout
+  const WEAPON_SVGS = {
+    rifle: `<svg viewBox="0 0 100 36" fill="none"><rect x="78" y="15" width="20" height="6" rx="3" fill="#1a1a1a"/><rect x="38" y="13" width="42" height="7" rx="1.5" fill="#1a1a1a"/><rect x="38" y="18" width="36" height="8" rx="1.5" fill="#4a4a4a"/><rect x="38" y="11" width="38" height="2.5" rx="0.5" fill="#cc1111"/><rect x="18" y="14" width="24" height="8" rx="1.5" fill="#3a3a3a"/><rect x="4" y="16" width="28" height="4" rx="2" fill="#1a1a1a"/><rect x="2" y="14.5" width="6" height="7" rx="1" fill="#cc1111"/><path d="M52 25 L52 35 Q52 36 50 36 L46 36 Q44 36 44 35 L44 27 Q44 25 46 25 Z" fill="#111"/></svg>`,
+    shotgun: `<svg viewBox="0 0 100 36" fill="none"><rect x="74" y="14" width="24" height="8" rx="3" fill="#2a1a0a"/><rect x="36" y="12" width="42" height="12" rx="2" fill="#3a2a1a"/><rect x="10" y="11" width="66" height="3" rx="1" fill="#2a1a0a"/><rect x="14" y="17" width="20" height="7" rx="2" fill="#cc4400"/><rect x="2" y="14" width="26" height="8" rx="3" fill="#1a1a1a"/><rect x="1" y="13" width="5" height="10" rx="1.5" fill="#cc4400"/><path d="M56 23 L56 34 Q56 36 54 36 L50 36 Q48 36 48 34 L48 25 Q48 23 50 23 Z" fill="#2a1a0a"/></svg>`,
+    smg: `<svg viewBox="0 0 100 36" fill="none"><rect x="60" y="14" width="22" height="8" rx="2" fill="#3a3a5a"/><rect x="30" y="13" width="34" height="10" rx="2" fill="#2a2a3a"/><rect x="10" y="15" width="24" height="6" rx="2" fill="#2a2a3a"/><rect x="40" y="22" width="4" height="10" rx="1" fill="#222"/><line x1="30" y1="18" x2="62" y2="18" stroke="#44aaff" stroke-width="1.5"/><rect x="62" y="11" width="16" height="4" rx="1" fill="#2a2a3a"/></svg>`,
+    sniper: `<svg viewBox="0 0 100 36" fill="none"><rect x="10" y="16" width="80" height="5" rx="2" fill="#2a2a2a"/><rect x="8" y="14" width="50" height="3" rx="1" fill="#111"/><circle cx="42" cy="12" r="4" stroke="#ffcc00" stroke-width="1" fill="none"/><rect x="60" y="13" width="20" height="6" rx="2" fill="#3d2b1a"/><rect x="36" y="20" width="3" height="8" rx="1" fill="#111"/></svg>`,
+  };
+  const s1svg = el('inv-slot-1-svg');
+  const s2svg = el('inv-slot-2-svg');
+  if (s1svg) s1svg.innerHTML = WEAPON_SVGS[LOADOUT_SLOT1] || WEAPON_SVGS.rifle;
+  if (s2svg) s2svg.innerHTML = WEAPON_SVGS[LOADOUT_SLOT2] || WEAPON_SVGS.shotgun;
 });
 
 // ── Remote player registry ────────────────────────────────────────────────
@@ -1782,7 +1767,17 @@ function showRoundResult(text, color) {
   setTimeout(() => { el.style.opacity = '0'; }, 1800);
 }
 
+let _lastDeathProcessed = null; // guard against duplicate pvp:playerDied events
+let _lastDeathTime = 0;
+
 socket.on("pvp:playerDied", ({ deadId, killerId }) => {
+  // Deduplicate — ignore same dead/killer pair within 2 seconds
+  const deathKey = `${deadId}-${killerId}`;
+  const now = Date.now();
+  if (_lastDeathProcessed === deathKey && now - _lastDeathTime < 2000) return;
+  _lastDeathProcessed = deathKey;
+  _lastDeathTime = now;
+
   const isSelf   = deadId   === socket.id;
   const isKiller = killerId === socket.id;
 
@@ -1800,12 +1795,30 @@ socket.on("pvp:playerDied", ({ deadId, killerId }) => {
     Audio.points();
     addKillFeed(`💀 ${playerName} killed opponent`);
     showRoundResult('+1 KILL', '#44ff88');
+    // Report kill to Convex
+    try {
+      const convex = window.__arenaConvex;
+      const api = window.__arenaApi;
+      if (convex && api) {
+        convex.mutation(api.stats.reportGameStats, { kills: 1, deaths: 0 })
+          .catch(e => console.warn('stats sync failed:', e?.message));
+      }
+    } catch (e) { console.warn('stats report error:', e?.message); }
   } else if (isSelf) {
     pvpOppScore++;
     Audio.playerHit();
     addKillFeed(`☠ ${playerName} was killed`);
     showRoundResult('YOU DIED', '#ff4444');
     state.gameOver = true;
+    // Report death to Convex
+    try {
+      const convex = window.__arenaConvex;
+      const api = window.__arenaApi;
+      if (convex && api) {
+        convex.mutation(api.stats.reportGameStats, { kills: 0, deaths: 1 })
+          .catch(e => console.warn('stats sync failed:', e?.message));
+      }
+    } catch (e) { console.warn('stats report error:', e?.message); }
   }
   updatePVPScoreHUD();
 
@@ -1819,6 +1832,20 @@ socket.on("pvp:playerDied", ({ deadId, killerId }) => {
       : `<div style="font-size:48px;letter-spacing:8px;color:#ff3333;margin-bottom:8px;">DEFEATED</div>
          <div style="font-size:14px;letter-spacing:2px;color:#fff;margin-bottom:6px;">${playerName} LOST</div>
          <div style="font-size:16px;letter-spacing:3px;color:#888;">FINAL SCORE: ${pvpMyScore} — ${pvpOppScore}</div>`;
+
+    // Report match result (win or loss) to Convex
+    try {
+      const convex = window.__arenaConvex;
+      const api = window.__arenaApi;
+      if (convex && api) {
+        convex.mutation(api.stats.reportGameStats, {
+          kills: 0, deaths: 0,
+          wins: won ? 1 : 0,
+          losses: won ? 0 : 1,
+          matches: 1,
+        }).catch(e => console.warn('stats sync failed:', e?.message));
+      }
+    } catch (e) { console.warn('stats report error:', e?.message); }
 
     document.exitPointerLock();
     setTimeout(() => {
@@ -1837,16 +1864,20 @@ socket.on("pvp:playerDied", ({ deadId, killerId }) => {
             const scoreHud = document.getElementById('pvp-score-hud');
             if (scoreHud) scoreHud.style.display = 'none';
             document.exitPointerLock();
+            const _c = window.__arenaConvex, _a = window.__arenaApi;
+            if (_c && _a) _c.mutation(_a.parties.clearMatch, {}).catch(() => {});
             window.location.href = '/menu/';
           }
         },
       ]);
     }, 1500);
   } else {
-    // Round not over — respawn both players after a short delay
-    setTimeout(() => {
-      socket.emit("pvp:rematch"); // triggers pvp:start on server which respawns both
-    }, 2000);
+    // Round not over — only the killer triggers the next round to avoid double-emit
+    if (isKiller) {
+      setTimeout(() => {
+        socket.emit("pvp:rematch");
+      }, 2000);
+    }
   }
 });
 
@@ -1873,6 +1904,8 @@ socket.on("pvp:opponentLeft", ({ id }) => {
     { label: 'Main Menu', fn: () => {
         hidePVPOverlay();
         document.exitPointerLock();
+        const _c = window.__arenaConvex, _a = window.__arenaApi;
+        if (_c && _a) _c.mutation(_a.parties.clearMatch, {}).catch(() => {});
         window.location.href = '/menu/';
       }
     },
@@ -2942,301 +2975,14 @@ document.getElementById('ui').appendChild(szHudEl);
 let szRegenAccum = 0;
 
 // ─────────────────────────────────────────────
-//  CAPTURE ZONE SYSTEM
+//  CAPTURE ZONE SYSTEM (disabled in PVP)
 // ─────────────────────────────────────────────
-const CAPTURE_ZONE_RADIUS   = 4;
-const CAPTURE_TIME          = 5;       // seconds to capture
-const CAPTURE_SHIELD_REGEN  = 2;       // shield/sec per captured zone
-const CAPTURE_DMG_REDUCTION = 0.25;    // damage reduction per zone (max 3 zones = 0.75)
-const CAPTURE_HP_BONUS      = 20;      // HP/shield max increase per zone
-const BASE_PLAYER_HP        = 100;     // base values (never modified)
-const BASE_PLAYER_SHIELD    = 100;
-
-const CAPTURE_ZONE_POSITIONS = [
-  { x: -28, z: 0 },
-  { x:  28, z: 0 },
-  { x:   0, z: -28 },
-  { x:   0, z:  28 },
-];
-
-// Build 3D objects for each capture zone (same style as shield zone)
-const captureZones = CAPTURE_ZONE_POSITIONS.map((pos, idx) => {
-  const group = new THREE.Group();
-  group.position.set(pos.x, 0, pos.z);
-  scene.add(group);
-
-  // Flat hex floor fill
-  const floorGeo = new THREE.CylinderGeometry(CAPTURE_ZONE_RADIUS, CAPTURE_ZONE_RADIUS, 0.02, 6);
-  const floorMat = new THREE.MeshBasicMaterial({ color: 0x444444, transparent: true, opacity: 0.12 });
-  const floorMesh = new THREE.Mesh(floorGeo, floorMat);
-  floorMesh.position.y = 0.01;
-  group.add(floorMesh);
-
-  // Outer border ring
-  const torusGeo = new THREE.TorusGeometry(CAPTURE_ZONE_RADIUS, 0.07, 6, 6);
-  const torusMat = new THREE.MeshBasicMaterial({ color: 0x666666, transparent: true, opacity: 0.9 });
-  const torusMesh = new THREE.Mesh(torusGeo, torusMat);
-  torusMesh.rotation.x = Math.PI / 2;
-  torusMesh.position.y = 0.04;
-  group.add(torusMesh);
-
-  // Inner border ring
-  const innerRingGeo = new THREE.TorusGeometry(CAPTURE_ZONE_RADIUS * 0.6, 0.04, 6, 6);
-  const innerRingMat = new THREE.MeshBasicMaterial({ color: 0x888888, transparent: true, opacity: 0.6 });
-  const innerRing = new THREE.Mesh(innerRingGeo, innerRingMat);
-  innerRing.rotation.x = Math.PI / 2;
-  innerRing.position.y = 0.04;
-  group.add(innerRing);
-
-  // 6 radial accent lines on the floor
-  const lineMat = new THREE.MeshBasicMaterial({ color: 0x555555, transparent: true, opacity: 0.4 });
-  for (let i = 0; i < 6; i++) {
-    const a = (i / 6) * Math.PI * 2;
-    const lineGeo = new THREE.PlaneGeometry(0.06, CAPTURE_ZONE_RADIUS);
-    const line = new THREE.Mesh(lineGeo, lineMat);
-    line.rotation.x = -Math.PI / 2;
-    line.rotation.z = a;
-    line.position.set(Math.cos(a) * CAPTURE_ZONE_RADIUS / 2, 0.03, Math.sin(a) * CAPTURE_ZONE_RADIUS / 2);
-    group.add(line);
-  }
-
-  // 6 corner diamonds at hex vertices
-  const pillarMats = [];
-  for (let i = 0; i < 6; i++) {
-    const a = (i / 6) * Math.PI * 2;
-    const pGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.5, 4);
-    const pMat = new THREE.MeshBasicMaterial({ color: 0x666666, transparent: true, opacity: 0.85 });
-    const pMesh = new THREE.Mesh(pGeo, pMat);
-    pMesh.rotation.y = Math.PI / 4;
-    pMesh.position.set(Math.cos(a) * CAPTURE_ZONE_RADIUS, 0.25, Math.sin(a) * CAPTURE_ZONE_RADIUS);
-    group.add(pMesh);
-    pillarMats.push(pMat);
-  }
-
-  return {
-    pos,
-    group,
-    floorMat,
-    torusMat,
-    pillarMats,
-    innerRing,
-    captured: false,
-    capturedByOpponent: false,
-    captureProgress: 0,
-    captureAccum: 0,
-  };
-});
-
-// HUD refs
-const _czProgressWrap  = document.getElementById('capture-progress-wrap');
-const _czProgressLabel = document.getElementById('capture-progress-label');
-const _czProgressFill  = document.getElementById('capture-progress-bar-fill');
-const _czSquares       = [0,1,2,3].map(i => document.getElementById('zone-sq-' + i));
-const _czFills         = [0,1,2,3].map(i => document.getElementById('zone-fill-' + i));
-
-// ── PVP: Opponent captured a zone — mark it as taken ─────────────────────
-socket.on("pvp:zoneCaptured", ({ zoneIdx }) => {
-  const cz = captureZones[zoneIdx];
-  if (!cz || cz.captured) return;
-  cz.capturedByOpponent = true;
-  cz.captureProgress = 1;
-  // Visual: turn red (enemy captured)
-  cz.floorMat.color.setHex(0x880000);
-  cz.torusMat.color.setHex(0xff4444);
-  cz.pillarMats.forEach(m => m.color.setHex(0x662222));
-  // HUD: show as enemy-captured
-  _czSquares[zoneIdx].classList.add('enemy-captured');
-  _czFills[zoneIdx].style.height = '100%';
-  _czFills[zoneIdx].style.background = 'rgba(255,68,68,0.6)';
-  addKillFeed('🔴 OPPONENT CAPTURED A ZONE!');
-});
-
-// Track how many zones are captured (used by damagePlayer & regen)
+const CAPTURE_ZONE_RADIUS = 0;
+const CAPTURE_DMG_REDUCTION = 0;
 let capturedZoneCount = 0;
-let czShieldRegenAccum = 0;
-
-function resetCaptureZones() {
-  capturedZoneCount = 0;
-  czShieldRegenAccum = 0;
-  // Reset SETTINGS max values to base
-  SETTINGS.PLAYER_HP     = BASE_PLAYER_HP;
-  SETTINGS.PLAYER_SHIELD = BASE_PLAYER_SHIELD;
-  captureZones.forEach((cz, i) => {
-    cz.captured = false;
-    cz.capturedByOpponent = false;
-    cz.captureProgress = 0;
-    cz.captureAccum = 0;
-    // Reset colours to grey
-    cz.floorMat.color.setHex(0x444444);
-    cz.torusMat.color.setHex(0x666666);
-    cz.pillarMats.forEach(m => m.color.setHex(0x555555));
-    // Reset HUD squares
-    _czSquares[i].classList.remove('captured');
-    _czSquares[i].classList.remove('enemy-captured');
-    _czFills[i].style.height = '0%';
-  });
-}
-
-function updateCaptureZones(dt) {
-  if (!state.running || state.gameOver) return;
-
-  const px = camera.position.x;
-  const pz = camera.position.z;
-
-  let insideUncapturedZone = false;
-  let activeZoneIdx = -1;
-
-  captureZones.forEach((cz, idx) => {
-    const dx = px - cz.pos.x;
-    const dz = pz - cz.pos.z;
-    const dist = Math.sqrt(dx * dx + dz * dz);
-    const inside = dist < CAPTURE_ZONE_RADIUS;
-
-    // Check if any opponent is also inside this zone (contested)
-    let contested = false;
-    if (pvpMode && inside) {
-      for (const rp of Object.values(remotePlayers)) {
-        if (rp.dead) continue;
-        const odx = rp.x - cz.pos.x;
-        const odz = rp.z - cz.pos.z;
-        if (Math.sqrt(odx * odx + odz * odz) < CAPTURE_ZONE_RADIUS) {
-          contested = true;
-          break;
-        }
-      }
-    }
-
-    if (!cz.captured && !cz.capturedByOpponent && inside && !contested) {
-      insideUncapturedZone = true;
-      activeZoneIdx = idx;
-
-      // Accumulate capture time
-      cz.captureAccum += dt;
-      cz.captureProgress = Math.min(1, cz.captureAccum / CAPTURE_TIME);
-
-      // Update HUD icon fill
-      _czFills[idx].style.height = Math.round(cz.captureProgress * 100) + '%';
-
-      // Tick sound every 5% progress
-      const prevPct = Math.floor((cz.captureProgress - dt / CAPTURE_TIME) * 20);
-      const curPct  = Math.floor(cz.captureProgress * 20);
-      if (curPct > prevPct && cz.captureProgress < 1) Audio.zoneProgress();
-
-      if (cz.captureProgress >= 1) {
-        // Zone captured!
-        cz.captured = true;
-        capturedZoneCount++;
-
-        // Update SETTINGS max HP/shield (cap at 4 zones = +80)
-        SETTINGS.PLAYER_HP     = BASE_PLAYER_HP     + capturedZoneCount * CAPTURE_HP_BONUS;
-        SETTINGS.PLAYER_SHIELD = BASE_PLAYER_SHIELD + capturedZoneCount * CAPTURE_HP_BONUS;
-
-        // Also top up current HP/shield to new max
-        state.playerHP     = Math.min(SETTINGS.PLAYER_HP,     state.playerHP     + CAPTURE_HP_BONUS);
-        state.playerShield = Math.min(SETTINGS.PLAYER_SHIELD, state.playerShield + CAPTURE_HP_BONUS);
-        updateHealthUI();
-
-        // Visual: turn blue (player captured)
-        cz.floorMat.color.setHex(0x0044ff);
-        cz.torusMat.color.setHex(0x44aaff);
-        cz.pillarMats.forEach(m => m.color.setHex(0x2266cc));
-
-        // HUD square
-        _czSquares[idx].classList.add('captured');
-        Audio.zoneCapture();
-
-        addKillFeed('🔵 ZONE CAPTURED! +' + CAPTURE_HP_BONUS + ' HP/SHIELD MAX  ⚔️ DMG ×' + (1 + capturedZoneCount * 0.25).toFixed(2));
-
-        // Notify opponent in PVP
-        if (pvpMode) socket.emit("pvp:zoneCaptured", { zoneIdx: idx });
-      }
-    } else if (!cz.captured && !inside) {
-      // Progress is preserved — player can leave and return
-    }
-
-    // Pulse captured zones gently
-    if (cz.captured) {
-      const t = performance.now() / 1000;
-      cz.floorMat.opacity = 0.25 + 0.10 * Math.sin(t * 1.5 + idx);
-    }
-  });
-
-  // Check if player is inside an opponent-captured zone
-  let insideEnemyZone = false;
-  let insideContestedZone = false;
-  if (pvpMode) {
-    captureZones.forEach((cz) => {
-      if (cz.capturedByOpponent) {
-        const dx = camera.position.x - cz.pos.x;
-        const dz = camera.position.z - cz.pos.z;
-        if (Math.sqrt(dx * dx + dz * dz) < CAPTURE_ZONE_RADIUS) insideEnemyZone = true;
-      }
-      // Check if we're in an uncaptured zone that's contested
-      if (!cz.captured && !cz.capturedByOpponent) {
-        const dx = camera.position.x - cz.pos.x;
-        const dz = camera.position.z - cz.pos.z;
-        if (Math.sqrt(dx * dx + dz * dz) < CAPTURE_ZONE_RADIUS) {
-          for (const rp of Object.values(remotePlayers)) {
-            if (rp.dead) continue;
-            const odx = rp.x - cz.pos.x;
-            const odz = rp.z - cz.pos.z;
-            if (Math.sqrt(odx * odx + odz * odz) < CAPTURE_ZONE_RADIUS) {
-              insideContestedZone = true;
-              break;
-            }
-          }
-        }
-      }
-    });
-  }
-
-  // Show/hide capture progress bar
-  if (insideEnemyZone) {
-    _czProgressWrap.style.display = 'flex';
-    _czProgressLabel.textContent  = '🔴 ALREADY CAPTURED BY OPPONENT';
-    _czProgressLabel.style.color  = '#ff4444';
-    _czProgressFill.style.width   = '100%';
-    _czProgressFill.style.background = 'linear-gradient(90deg, #880000, #ff4444)';
-  } else if (insideContestedZone) {
-    _czProgressWrap.style.display = 'flex';
-    _czProgressLabel.textContent  = '⚠️ ZONE CONTESTED — CAPTURE BLOCKED';
-    _czProgressLabel.style.color  = '#ffcc00';
-    _czProgressFill.style.width   = '0%';
-    _czProgressFill.style.background = 'linear-gradient(90deg, #886600, #ffcc00)';
-  } else if (insideUncapturedZone && activeZoneIdx >= 0) {
-    const cz = captureZones[activeZoneIdx];
-    const pct = Math.round(cz.captureProgress * 100);
-    _czProgressWrap.style.display = 'flex';
-    _czProgressLabel.textContent  = 'CAPTURING... ' + pct + '%';
-    _czProgressLabel.style.color  = '#88ddff';
-    _czProgressFill.style.width   = pct + '%';
-    _czProgressFill.style.background = 'linear-gradient(90deg, #0044ff, #44aaff)';
-  } else {
-    _czProgressWrap.style.display = 'none';
-  }
-
-  // Shield + HP regen only when player is physically inside a captured zone
-  const playerInCapturedZone = captureZones.some(cz => {
-    if (!cz.captured) return false;
-    const dx = camera.position.x - cz.pos.x;
-    const dz = camera.position.z - cz.pos.z;
-    return Math.sqrt(dx * dx + dz * dz) < CAPTURE_ZONE_RADIUS;
-  });
-
-  if (playerInCapturedZone) {
-    czShieldRegenAccum += CAPTURE_SHIELD_REGEN * dt;
-    if (czShieldRegenAccum >= 1) {
-      const regen = Math.floor(czShieldRegenAccum);
-      czShieldRegenAccum -= regen;
-      state.playerShield = Math.min(SETTINGS.PLAYER_SHIELD, state.playerShield + regen);
-      state.playerHP     = Math.min(SETTINGS.PLAYER_HP,     state.playerHP     + regen);
-      updateHealthUI();
-      Audio.shieldZoneRegen();
-    }
-  } else {
-    czShieldRegenAccum = 0;
-  }
-}
+const captureZones = [];
+function resetCaptureZones() {}
+function updateCaptureZones() {}
 
 function updateShieldZone(dt) {
   const t = performance.now() / 1000;
@@ -3946,6 +3692,7 @@ const WEAPONS = {
     fireInterval: 0,
     tracerColor: 0xff2200,
     tracerCore: 0xffaaaa,
+    auto: false,
   },
   shotgun: {
     name: 'shotgun',
@@ -3957,11 +3704,42 @@ const WEAPONS = {
     fireInterval: 600,
     tracerColor: 0xff8800,
     tracerCore: 0xffddaa,
+    auto: false,
+  },
+  smg: {
+    name: 'smg',
+    maxAmmo: 35,
+    reloadTime: 1500,
+    damage: 14,
+    pellets: 1,
+    spread: 0.04,
+    fireInterval: 75,
+    tracerColor: 0x44aaff,
+    tracerCore: 0xaaddff,
+    auto: true,
+  },
+  sniper: {
+    name: 'sniper',
+    maxAmmo: 3,
+    reloadTime: 2800,
+    damage: 150,
+    pellets: 1,
+    spread: 0.25,
+    fireInterval: 1200,
+    tracerColor: 0xffff00,
+    tracerCore: 0xffffaa,
+    auto: false,
+    scopeZoom: 15,
   },
 };
 
+const _loadoutSlot1 = localStorage.getItem('arenaLoadoutSlot1') || 'rifle';
+const _loadoutSlot2 = localStorage.getItem('arenaLoadoutSlot2') || 'shotgun';
+const LOADOUT_SLOT1 = WEAPONS[_loadoutSlot1] ? _loadoutSlot1 : 'rifle';
+const LOADOUT_SLOT2 = WEAPONS[_loadoutSlot2] ? _loadoutSlot2 : 'shotgun';
+
 let currentWeapon = WEAPONS.rifle;
-const weaponAmmo = { rifle: 30, shotgun: 6 };
+const weaponAmmo = { rifle: 30, shotgun: 6, smg: 35, sniper: 3 };
 
 function switchWeapon(weaponKey) {
   if (state.reloading) return;
@@ -3972,15 +3750,18 @@ function switchWeapon(weaponKey) {
   currentWeapon = w;
   state.ammo = weaponAmmo[weaponKey];
 
-  gunGroup.visible = (weaponKey === 'rifle');
-  sgGroup.visible  = (weaponKey === 'shotgun');
+  gunGroup.visible   = (weaponKey === 'rifle');
+  sgGroup.visible    = (weaponKey === 'shotgun');
+  smgGroup.visible   = (weaponKey === 'smg');
+  sniperGroup.visible = (weaponKey === 'sniper');
 
-  document.getElementById('crosshair').style.opacity    = weaponKey === 'rifle' ? '1' : '0';
+  document.getElementById('crosshair').style.opacity    = (weaponKey === 'rifle' || weaponKey === 'smg' || weaponKey === 'sniper') ? '1' : '0';
   document.getElementById('crosshair-sg').style.opacity = weaponKey === 'shotgun' ? '1' : '0';
   document.getElementById('crosshair-ads').style.opacity = '0';
+  document.getElementById('sniper-scope').style.display = 'none';
 
-  document.getElementById('inv-slot-1').classList.toggle('active', weaponKey === 'rifle');
-  document.getElementById('inv-slot-2').classList.toggle('active', weaponKey === 'shotgun');
+  document.getElementById('inv-slot-1').classList.toggle('active', weaponKey === LOADOUT_SLOT1);
+  document.getElementById('inv-slot-2').classList.toggle('active', weaponKey === LOADOUT_SLOT2);
 
   updateAmmoUI();
 }
@@ -4228,10 +4009,86 @@ camera.add(sgGroup);
 sgRightHand = makeHand(sgGroup, 0.0, -0.14, 0.08, -0.2, 0, 0, false);
 sgLeftHand  = makeHand(sgGroup, 0.0, -0.02, -0.26, 0.1, 0, 0, true);
 
+// ─────────────────────────────────────────────
+//  SMG VIEWMODEL
+// ─────────────────────────────────────────────
+const smgGroup = new THREE.Group();
+const smgBody   = new THREE.MeshLambertMaterial({ color: 0x2a2a3a });
+const smgDark   = new THREE.MeshLambertMaterial({ color: 0x111118 });
+const smgGlow   = new THREE.MeshBasicMaterial({ color: 0x44aaff });
+
+const smgReceiver = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.09, 0.32), smgBody);
+smgGroup.add(smgReceiver);
+const smgRail = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.015, 0.28), smgDark);
+smgRail.position.set(0, 0.052, -0.02);
+smgGroup.add(smgRail);
+const smgBarrel = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.22, 10), smgDark);
+smgBarrel.rotation.x = Math.PI / 2; smgBarrel.position.set(0, 0.02, -0.26);
+smgGroup.add(smgBarrel);
+const smgMuzzle = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.020, 0.06, 8), smgBody);
+smgMuzzle.rotation.x = Math.PI / 2; smgMuzzle.position.set(0, 0.02, -0.38);
+smgGroup.add(smgMuzzle);
+const smgForegrip = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.08, 0.04), smgDark);
+smgForegrip.position.set(0, -0.07, -0.12);
+smgGroup.add(smgForegrip);
+const smgMag = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.12, 0.04), smgDark);
+smgMag.position.set(0, -0.10, 0.04); smgMag.rotation.x = 0.1;
+smgGroup.add(smgMag);
+const smgGripP = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.09, 0.035), smgDark);
+smgGripP.position.set(0, -0.08, 0.10); smgGripP.rotation.x = -0.2;
+smgGroup.add(smgGripP);
+const smgStock = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.04, 0.12), smgBody);
+smgStock.position.set(0, 0.01, 0.22);
+smgGroup.add(smgStock);
+const smgStrip = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.008, 0.20), smgGlow);
+smgStrip.position.set(0.035, 0.0, -0.02);
+smgGroup.add(smgStrip);
+const smgStrip2 = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.008, 0.20), smgGlow);
+smgStrip2.position.set(-0.035, 0.0, -0.02);
+smgGroup.add(smgStrip2);
+smgGroup.position.set(0.22, -0.22, -0.44);
+smgGroup.visible = false;
+camera.add(smgGroup);
+
+// ── SNIPER VIEWMODEL ─────────────────────────────────
+const sniperGroup = new THREE.Group();
+const snpBody  = new THREE.MeshLambertMaterial({ color: 0x2a2a2a });
+const snpDark  = new THREE.MeshLambertMaterial({ color: 0x111111 });
+const snpWood  = new THREE.MeshLambertMaterial({ color: 0x3d2b1a });
+const snpGlow  = new THREE.MeshBasicMaterial({ color: 0xffcc00 });
+const snpReceiver = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.08, 0.55), snpBody);
+snpReceiver.position.set(0, 0, -0.05); sniperGroup.add(snpReceiver);
+const snpBarrel = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.50, 10), snpDark);
+snpBarrel.rotation.x = Math.PI/2; snpBarrel.position.set(0, 0.03, -0.50); sniperGroup.add(snpBarrel);
+const snpMuzzle = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.018, 0.06, 8), snpBody);
+snpMuzzle.rotation.x = Math.PI/2; snpMuzzle.position.set(0, 0.03, -0.76); sniperGroup.add(snpMuzzle);
+const snpScope = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.18, 10), snpDark);
+snpScope.rotation.x = Math.PI/2; snpScope.position.set(0, 0.075, -0.08); sniperGroup.add(snpScope);
+const snpLens = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.01, 10), snpGlow);
+snpLens.rotation.x = Math.PI/2; snpLens.position.set(0, 0.075, -0.17); sniperGroup.add(snpLens);
+const snpMount = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.02, 0.10), snpBody);
+snpMount.position.set(0, 0.055, -0.08); sniperGroup.add(snpMount);
+const snpStock = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.07, 0.22), snpWood);
+snpStock.position.set(0, -0.01, 0.30); sniperGroup.add(snpStock);
+const snpMag = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.08, 0.04), snpDark);
+snpMag.position.set(0, -0.08, 0.02); sniperGroup.add(snpMag);
+const snpGrip = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.09, 0.03), snpDark);
+snpGrip.position.set(0, -0.08, 0.12); snpGrip.rotation.x = -0.2; sniperGroup.add(snpGrip);
+sniperGroup.position.set(0.22, -0.24, -0.50);
+sniperGroup.visible = false;
+camera.add(sniperGroup);
+
 function getMuzzleWorldPos() {
-  const activeGroup = currentWeapon.name === 'shotgun' ? sgGroup : gunGroup;
+  const activeGroup = currentWeapon.name === 'shotgun' ? sgGroup
+    : currentWeapon.name === 'smg' ? smgGroup
+    : currentWeapon.name === 'sniper' ? sniperGroup
+    : gunGroup;
   const local = currentWeapon.name === 'shotgun'
     ? new THREE.Vector3(0, 0.04, -0.60)
+    : currentWeapon.name === 'smg'
+    ? new THREE.Vector3(0, 0.02, -0.42)
+    : currentWeapon.name === 'sniper'
+    ? new THREE.Vector3(0, 0.03, -0.80)
     : new THREE.Vector3(0, 0.06, -0.61);
   return local.applyMatrix4(activeGroup.matrixWorld);
 }
@@ -4252,27 +4109,46 @@ function updateGunAnim(dt) {
   adsProgress += (isADS ? 1 : -1) * ADS_SPEED * dt;
   adsProgress = Math.max(0, Math.min(1, adsProgress));
 
-  const targetFOV = isADS ? 35 : 75;
+  const targetFOV = isADS ? (currentWeapon.scopeZoom ? currentWeapon.scopeZoom : 35) : 75;
   camera.fov += (targetFOV - camera.fov) * Math.min(1, ADS_SPEED * dt);
   camera.updateProjectionMatrix();
 
-  if (currentWeapon.name === 'rifle') {
+  if (currentWeapon.name === 'sniper') {
+    const scopeEl = document.getElementById('sniper-scope');
+    if (adsProgress > 0.85) {
+      scopeEl.style.display = 'block';
+      sniperGroup.visible = false;
+      document.getElementById('crosshair').style.opacity = '0';
+      document.getElementById('crosshair-ads').style.opacity = '0';
+    } else {
+      scopeEl.style.display = 'none';
+      sniperGroup.visible = true;
+      document.getElementById('crosshair').style.opacity = String(1 - adsProgress);
+      document.getElementById('crosshair-ads').style.opacity = '0';
+    }
+    document.getElementById('crosshair-sg').style.opacity = '0';
+  } else if (currentWeapon.name === 'rifle' || currentWeapon.name === 'smg') {
+    document.getElementById('sniper-scope').style.display = 'none';
     document.getElementById('crosshair').style.opacity     = 1 - adsProgress;
     document.getElementById('crosshair-ads').style.opacity = adsProgress;
     document.getElementById('crosshair-sg').style.opacity  = '0';
   } else {
-    // Shotgun: brackets shrink during ADS instead of disappearing
+    document.getElementById('sniper-scope').style.display = 'none';
     document.getElementById('crosshair-sg').style.opacity  = '1';
     document.getElementById('crosshair-ads').style.opacity = '0';
     document.getElementById('crosshair').style.opacity     = '0';
   }
-  document.getElementById('ads-vignette').style.opacity   = adsProgress * 0.85;
+  document.getElementById('ads-vignette').style.opacity   = currentWeapon.name === 'sniper' ? '0' : adsProgress * 0.85;
 
-  const activeGroup = currentWeapon.name === 'shotgun' ? sgGroup : gunGroup;
+  const activeGroup = currentWeapon.name === 'shotgun' ? sgGroup : (currentWeapon.name === 'smg' ? smgGroup : (currentWeapon.name === 'sniper' ? sniperGroup : gunGroup));
   const sgRestPos = new THREE.Vector3(0.24, -0.24, -0.48);
   const sgADSPos  = new THREE.Vector3(0.05, -0.30, -0.48);
-  const activeRest = currentWeapon.name === 'shotgun' ? sgRestPos : gunRestPos;
-  const activeADS  = currentWeapon.name === 'shotgun' ? sgADSPos  : gunADSPos;
+  const smgRestPos = new THREE.Vector3(0.22, -0.22, -0.44);
+  const smgADSPos  = new THREE.Vector3(0.05, -0.28, -0.44);
+  const sniperRestPos = new THREE.Vector3(0.22, -0.24, -0.50);
+  const sniperADSPos  = new THREE.Vector3(0.0, -0.20, -0.50);
+  const activeRest = currentWeapon.name === 'shotgun' ? sgRestPos : (currentWeapon.name === 'smg' ? smgRestPos : (currentWeapon.name === 'sniper' ? sniperRestPos : gunRestPos));
+  const activeADS  = currentWeapon.name === 'shotgun' ? sgADSPos  : (currentWeapon.name === 'smg' ? smgADSPos  : (currentWeapon.name === 'sniper' ? sniperADSPos  : gunADSPos));
 
   if (gunKickTimer > 0) {
     gunKickTimer -= dt;
@@ -4398,7 +4274,10 @@ function shoot() {
   const now = performance.now();
   if (currentWeapon.fireInterval > 0 && now - (state.lastFireTime || 0) < currentWeapon.fireInterval) return;
   state.lastFireTime = now;
-  if (currentWeapon.name === 'shotgun') Audio.shotgun(); else Audio.rifle();
+  if (currentWeapon.name === 'shotgun') Audio.shotgun();
+  else if (currentWeapon.name === 'smg') Audio.rifle();
+  else if (currentWeapon.name === 'sniper') Audio.shotgun();
+  else Audio.rifle();
   state.ammo--;
   weaponAmmo[currentWeapon.name] = state.ammo;
   updateAmmoUI();
@@ -4406,8 +4285,10 @@ function shoot() {
 
   gunKickTimer = GUN_KICK_DUR;
   triggerHandRecoil();
-  applyRecoil(currentWeapon.name === 'shotgun' ? 0.09 : 0.022);
+  applyRecoil(currentWeapon.name === 'shotgun' ? 0.09 : currentWeapon.name === 'smg' ? 0.035 : currentWeapon.name === 'sniper' ? 0.12 : 0.022);
   if (currentWeapon.name === 'shotgun') shakeIntensity = Math.min(0.06, shakeIntensity + 0.045);
+  if (currentWeapon.name === 'smg') shakeIntensity = Math.min(0.04, shakeIntensity + 0.02);
+  if (currentWeapon.name === 'sniper') shakeIntensity = Math.min(0.08, shakeIntensity + 0.06);
   addSpread();
 
   spawnMuzzleFlash(getMuzzleWorldPos(), currentWeapon.name === 'shotgun');
@@ -4416,7 +4297,10 @@ function shoot() {
   const baseDir = raycaster.ray.direction.clone().normalize();
   const pellets = currentWeapon.pellets;
   const adsMult = state.mouseButtons[2] ? SPREAD_ADS_MULT : 1.0;
-  const spread  = currentWeapon.spread + currentSpread * 0.06 * adsMult;
+  // Sniper: perfectly accurate when scoped (ADS > 0.85), huge spread when hip-firing
+  const spread  = (currentWeapon.name === 'sniper' && adsProgress > 0.85)
+    ? 0
+    : currentWeapon.spread + currentSpread * 0.06 * adsMult;
 
   for (let p = 0; p < pellets; p++) {
     const d = baseDir.clone();
@@ -4481,7 +4365,6 @@ if (isWallHit) {
 }
       const target = targets.find(t => t.mesh === hit.object);
       if (target && !target.bot.dead) {
-        const zoneDmgMult = 1 + capturedZoneCount * 0.25;
         let baseDmg = currentWeapon.damage;
         // Shotgun damage falloff by distance
         if (currentWeapon.name === 'shotgun') {
@@ -4491,8 +4374,8 @@ if (isWallHit) {
           else if (dist > 10) { baseDmg = Math.round(baseDmg * 0.45); }
         }
         const dmg = target.head
-          ? Math.round(baseDmg * SETTINGS.HEADSHOT_MULT * zoneDmgMult)
-          : Math.round(baseDmg * zoneDmgMult);
+          ? Math.round(baseDmg * SETTINGS.HEADSHOT_MULT)
+          : baseDmg;
         damageBotBy(target.bot, dmg, target.head);
       }
       spawnSpark(hit.point);
@@ -4525,9 +4408,9 @@ let currentSpread = 0;
 
 // FIX: SPREAD_RECOVERY was missing — now defined as a constant
 const SPREAD_RECOVERY    = 2.2;
-const SPREAD_PER_SHOT_W  = { rifle: 0.18,  shotgun: 0.50  };
-const SPREAD_MAX_W       = { rifle: 0.75,  shotgun: 1.0   };
-const SPREAD_RECOVERY_W  = { rifle: 2.2,   shotgun: 1.4   };
+const SPREAD_PER_SHOT_W  = { rifle: 0.18,  shotgun: 0.50, smg: 0.28, sniper: 0.0  };
+const SPREAD_MAX_W       = { rifle: 0.75,  shotgun: 1.0,  smg: 1.2,  sniper: 0.0  };
+const SPREAD_RECOVERY_W  = { rifle: 2.2,   shotgun: 1.4,  smg: 1.8,  sniper: 0.0  };
 const SPREAD_MOVE_ADD    = 0.30;
 const SPREAD_SPRINT_ADD  = 0.55;
 const SPREAD_ADS_MULT    = 0.25;
@@ -4583,14 +4466,21 @@ function updateRecoil(dt) {
 }
 
 function updateCrosshairSpread() {
-  const base = 26;
-  const expanded = base + currentSpread * 55;
+  const isADS = state.mouseButtons[2];
+  // Sniper: huge crosshair when hip-firing, shrinks to nothing when ADS
+  let base, expanded;
+  if (currentWeapon.name === 'sniper') {
+    base = 80 * (1 - adsProgress);
+    expanded = base;
+  } else {
+    base = 26;
+    expanded = base + currentSpread * 55;
+  }
   const ch = document.getElementById('crosshair');
   const sg = document.getElementById('crosshair-sg');
   ch.style.width  = expanded + 'px';
   ch.style.height = expanded + 'px';
   // Shotgun brackets: expand from base (or ADS-shrunk base) + spread
-  const isADS = state.mouseButtons[2];
   const sgBase = isADS ? 18 : 36;
   const sgExpanded = sgBase + currentSpread * 40;
   sg.style.width  = sgExpanded + 'px';
@@ -5530,7 +5420,7 @@ function updateHealHUD() {
 // ─────────────────────────────────────────────
 //  ARMOUR ABILITY
 // ─────────────────────────────────────────────
-const ABILITY_COOLDOWN  = 60;  // seconds to recharge
+const ABILITY_COOLDOWN  = 90;  // seconds to recharge
 const ABILITY_DURATION  = 8;   // seconds active
 const ABILITY_DMG_DIV   = 3;   // damage divided by this while active
 const RING_PERIMETER    = 264; // approx perimeter of 68×68 rounded rect
@@ -5598,11 +5488,6 @@ function damagePlayer(dmg) {
   Audio.playerHit();
   // Armour ability reduces damage by 3×
   if (abilityState === 'active') dmg = Math.max(1, Math.floor(dmg / ABILITY_DMG_DIV));
-  // Capture zone damage reduction: 0.25x per zone, capped at 3 zones (0.75 total)
-  if (capturedZoneCount > 0) {
-    const reduction = Math.min(3, capturedZoneCount) * CAPTURE_DMG_REDUCTION;
-    dmg = Math.max(1, Math.round(dmg * (1 - reduction)));
-  }
   if (state.playerShield > 0) {
     const absorbed = Math.min(state.playerShield, dmg);
     state.playerShield -= absorbed;
@@ -5880,24 +5765,6 @@ function drawMinimap() {
   mmCtx.fillStyle = 'rgba(0,80,200,0.12)';
   mmCtx.fill();
 
-  // Capture zones — grey (uncaptured) or blue (captured)
-  const czR = (CAPTURE_ZONE_RADIUS / MM_WORLD) * MM_SIZE;
-  captureZones.forEach(cz => {
-    const cp = worldToMM(cz.pos.x, cz.pos.z);
-    mmCtx.beginPath();
-    mmCtx.arc(cp.x, cp.y, czR, 0, Math.PI * 2);
-    if (cz.captured) {
-      mmCtx.strokeStyle = 'rgba(68,170,255,0.9)';
-      mmCtx.fillStyle   = 'rgba(0,68,255,0.22)';
-    } else {
-      mmCtx.strokeStyle = 'rgba(120,120,120,0.7)';
-      mmCtx.fillStyle   = 'rgba(80,80,80,0.10)';
-    }
-    mmCtx.lineWidth = 1.5;
-    mmCtx.stroke();
-    mmCtx.fill();
-  });
-
   state.drops.forEach(drop => {
     const p = worldToMM(drop.mesh.position.x, drop.mesh.position.z);
     mmCtx.save();
@@ -6019,6 +5886,9 @@ document.getElementById('pause-leave-btn').addEventListener('click', () => {
   document.getElementById('pause-overlay').style.display = 'none';
   document.exitPointerLock();
   saveHighScore();
+  // Clear party matchCode so we stay in lobby on return
+  const _c = window.__arenaConvex, _a = window.__arenaApi;
+  if (_c && _a) _c.mutation(_a.parties.clearMatch, {}).catch(() => {});
   window.location.href = '/menu/';
 });
 
@@ -6031,8 +5901,8 @@ document.addEventListener('keydown', e => {
   }
   state.keys[e.code] = true;
   if (e.code === KB.reload  && state.running && !state.reloading && state.ammo < currentWeapon.maxAmmo) startReload();
-  if (e.code === KB.weapon1 && state.running) switchWeapon('rifle');
-  if (e.code === KB.weapon2 && state.running) switchWeapon('shotgun');
+  if (e.code === KB.weapon1 && state.running) switchWeapon(LOADOUT_SLOT1);
+  if (e.code === KB.weapon2 && state.running) switchWeapon(LOADOUT_SLOT2);
   if (e.code === KB.ability && state.running) activateAbility();
   if (e.code === KB.heal    && state.running) useHeal();
   e.preventDefault();
@@ -6042,17 +5912,18 @@ document.addEventListener('keyup', e => { state.keys[e.code] = false; });
 document.addEventListener('mousedown', e => {
   if (!state.running) return;
   if (e.button === 0) {
-    // Re-request pointer lock if lost (e.g. user tabbed out)
     if (document.pointerLockElement !== canvas) {
       canvas.requestPointerLock();
       return;
     }
+    state.mouseButtons[0] = true;
     shoot();
   }
   if (e.button === 2) state.mouseButtons[2] = true;
 });
 
 document.addEventListener('mouseup', e => {
+  if (e.button === 0) state.mouseButtons[0] = false;
   if (e.button === 2) state.mouseButtons[2] = false;
 });
 
@@ -6116,12 +5987,16 @@ function startGame() {
   document.getElementById('streak-announce').classList.remove('show');
   state.playerHP = SETTINGS.PLAYER_HP;
   state.playerShield = SETTINGS.PLAYER_SHIELD;
-  state.ammo = SETTINGS.MAX_AMMO;
-  currentWeapon = WEAPONS.rifle;
+  state.ammo = WEAPONS[LOADOUT_SLOT1].maxAmmo;
+  currentWeapon = WEAPONS[LOADOUT_SLOT1];
   weaponAmmo.rifle = 30;
-  weaponAmmo.shotgun = 8;
-  gunGroup.visible = true;
-  sgGroup.visible = false;
+  weaponAmmo.shotgun = 6;
+  weaponAmmo.smg = 35;
+  weaponAmmo.sniper = 3;
+  gunGroup.visible = (LOADOUT_SLOT1 === 'rifle');
+  sgGroup.visible = (LOADOUT_SLOT1 === 'shotgun');
+  smgGroup.visible = (LOADOUT_SLOT1 === 'smg');
+  sniperGroup.visible = (LOADOUT_SLOT1 === 'sniper');
   document.getElementById('inv-slot-1').classList.add('active');
   document.getElementById('inv-slot-2').classList.remove('active');
   state.reloading = false; state.waveSpawning = false;
@@ -6172,8 +6047,9 @@ function startGame() {
   if (!pvpMode) {
     spawnWave(1);
   } else {
-    // Read room code from lobby page and join matchmaking
-    const roomCode = localStorage.getItem('pvpRoomCode') || '0000';
+    // Read room code from lobby page or URL query param (party direct join)
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomCode = urlParams.get('code') || localStorage.getItem('pvpRoomCode') || '0000';
     localStorage.removeItem('pvpRoomCode');
     console.log("PVP room code:", roomCode);
 
@@ -6232,6 +6108,9 @@ document.getElementById('restart-btn').addEventListener('click', () => {
   if (pvpHudEl) pvpHudEl.style.display = 'none';
   // Flag new high score if applicable
   saveHighScore();
+  // Clear party matchCode so we stay in lobby on return
+  const _c = window.__arenaConvex, _a = window.__arenaApi;
+  if (_c && _a) _c.mutation(_a.parties.clearMatch, {}).catch(() => {});
   window.location.href = '/menu/';
 });
 
@@ -6248,6 +6127,10 @@ function loop() {
 
   if (state.running && !state.gameOver && !gamePaused) {
     updatePlayer(dt);
+    // Auto-fire for SMG (hold to shoot)
+    if (currentWeapon.auto && state.mouseButtons[0] && !state.reloading && !state.gameOver) {
+      shoot();
+    }
     updateRecoil(dt);
     updateHitmarker(dt);
     updateGunAnim(dt);

@@ -12,6 +12,7 @@ import type * as friends from "../friends.js";
 import type * as keybinds from "../keybinds.js";
 import type * as leaderboard from "../leaderboard.js";
 import type * as matches from "../matches.js";
+import type * as parties from "../parties.js";
 import type * as presence from "../presence.js";
 import type * as stats from "../stats.js";
 import type * as users from "../users.js";
@@ -27,6 +28,7 @@ declare const fullApi: ApiFromModules<{
   keybinds: typeof keybinds;
   leaderboard: typeof leaderboard;
   matches: typeof matches;
+  parties: typeof parties;
   presence: typeof presence;
   stats: typeof stats;
   users: typeof users;

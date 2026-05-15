@@ -10,6 +10,390 @@
   /* page-specific overrides only */
   .tagline { font-style: italic; color: rgba(255,255,255,0.55); font-size: 14px; margin-top: 16px; max-width: 320px; line-height: 1.5; }
   .submenu-empty { color: rgba(255,255,255,0.4); font-size: 13px; padding: 16px 0; }
+
+  /* Loadout panel */
+  .loadout-panel {
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .loadout-slot-section {
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .loadout-slot-header {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .loadout-slot-num {
+    width: 22px; height: 22px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--h-bg-deep); border: 1px solid var(--h-line);
+    font-family: var(--h-mono); font-size: 11px; font-weight: bold;
+    color: var(--h-fg-dim);
+  }
+  .loadout-slot-title {
+    font-size: 10px; letter-spacing: 4px; text-transform: uppercase;
+    color: var(--h-fg-dim); font-weight: 600;
+  }
+  .loadout-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+  }
+  .loadout-card {
+    background: var(--h-bg-pane); border: 1px solid var(--h-line-soft);
+    padding: 10px 8px 8px; display: flex; flex-direction: column;
+    align-items: center; gap: 6px; cursor: pointer;
+    transition: border-color 0.15s, background 0.15s, transform 0.1s;
+  }
+  .loadout-card:hover {
+    border-color: var(--h-line); background: rgba(255,255,255,0.04);
+    transform: translateY(-1px);
+  }
+  .loadout-card.selected {
+    border-color: var(--h-accent);
+    background: rgba(126,182,225,0.08);
+    box-shadow: 0 0 10px var(--h-accent-glow);
+  }
+  .loadout-card svg {
+    width: 80px; height: 30px; opacity: 0.85;
+  }
+  .loadout-card.selected svg { opacity: 1; }
+  .loadout-card-name {
+    font-size: 11px; font-weight: 700; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--h-fg);
+  }
+  .loadout-card-stat {
+    font-size: 9px; letter-spacing: 1px; color: var(--h-fg-dimmer);
+    font-family: var(--h-mono);
+  }
+  /* Detail panel */
+  .loadout-detail {
+    margin-top: 12px; padding: 12px 14px;
+    background: var(--h-bg-pane); border: 1px solid var(--h-line-soft);
+  }
+  .loadout-detail-name {
+    font-size: 14px; font-weight: 700; letter-spacing: 3px;
+    text-transform: uppercase; color: var(--h-accent); margin-bottom: 8px;
+  }
+  .loadout-detail-stats {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px;
+    font-size: 10px; letter-spacing: 1px; color: var(--h-fg-dim);
+    font-family: var(--h-mono);
+  }
+  .loadout-detail-stats .stat-val { color: var(--h-fg); font-weight: bold; }
+
+  /* Right sidebar for social/invite */
+  .social-sidebar {
+    position: fixed; top: 0; right: 0; bottom: 0;
+    width: 360px; max-width: 90vw;
+    z-index: 50;
+    background: rgba(8,12,18,0.92);
+    border-left: 1px solid rgba(255,255,255,0.12);
+    backdrop-filter: blur(12px);
+    display: flex; flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 0.25s ease;
+    pointer-events: all;
+  }
+  .social-sidebar.open {
+    transform: translateX(0);
+  }
+  .social-sidebar-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 20px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .social-sidebar-title {
+    font-size: 11px; font-weight: 700; letter-spacing: 5px;
+    text-transform: uppercase; color: rgba(255,255,255,0.6);
+  }
+  .social-sidebar-close {
+    background: transparent; border: 1px solid rgba(255,255,255,0.2);
+    color: rgba(255,255,255,0.7); font-size: 14px;
+    width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: border-color 0.15s, color 0.15s;
+  }
+  .social-sidebar-close:hover { border-color: #fff; color: #fff; }
+  .social-sidebar .halo-tabs-sub {
+    padding: 0 20px; margin-bottom: 0;
+  }
+  .social-sidebar-body {
+    flex: 1; overflow-y: auto; padding: 12px 20px 20px;
+  }
+  .social-sidebar-body .halo-list { max-height: none; }
+  .social-sidebar-body .halo-search-row { margin-bottom: 10px; }
+
+  @media (max-width: 720px) {
+    .social-sidebar { width: 100%; max-width: 100%; }
+  }
+
+  /* Leave room button */
+  .leave-room-btn {
+    position: fixed; top: 24px; left: 50%;
+    transform: translateX(-50%);
+    z-index: 12;
+    background: rgba(208,68,68,0.15);
+    border: 1px solid rgba(208,68,68,0.5);
+    color: #ff6666;
+    font-family: var(--h-mono); font-size: 11px;
+    letter-spacing: 3px; text-transform: uppercase;
+    padding: 8px 20px; cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .leave-room-btn:hover {
+    background: rgba(208,68,68,0.3);
+    border-color: #ff4444;
+    color: #fff;
+  }
+
+  /* Ready button */
+  .ready-btn {
+    position: fixed; bottom: 90px; left: 50%;
+    transform: translateX(-50%);
+    z-index: 12;
+    background: rgba(102,224,138,0.15);
+    border: 1px solid rgba(102,224,138,0.5);
+    color: #66e08a;
+    font-family: var(--h-mono); font-size: 13px;
+    font-weight: 700; letter-spacing: 4px; text-transform: uppercase;
+    padding: 12px 32px; cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+  .ready-btn:hover {
+    background: rgba(102,224,138,0.3);
+    border-color: #66e08a;
+    color: #fff;
+  }
+  .ready-btn.is-ready {
+    background: rgba(208,68,68,0.12);
+    border-color: rgba(208,68,68,0.5);
+    color: #ff6666;
+    box-shadow: none;
+    transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.1s;
+  }
+  .ready-btn.is-ready:hover {
+    background: rgba(208,68,68,0.25);
+    border-color: #ff4444;
+    color: #fff;
+  }
+  .ready-btn.pop {
+    animation: btnPop 0.25s ease-out;
+  }
+  @keyframes btnPop {
+    0% { transform: translateX(-50%) scale(1); }
+    40% { transform: translateX(-50%) scale(1.08); }
+    100% { transform: translateX(-50%) scale(1); }
+  }
+
+  /* Ready indicator on party slot */
+  .party-slot-ready {
+    font-size: 9px; letter-spacing: 2px;
+    font-family: var(--h-mono); text-transform: uppercase;
+    margin-top: 2px;
+  }
+  .party-slot-ready.is-ready { color: #66e08a; }
+  .party-slot-ready.not-ready { color: rgba(255,255,255,0.3); }
+
+  /* Invite notification */
+  .invite-notification {
+    position: fixed; top: 80px; right: 32px;
+    z-index: 60;
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(8,12,18,0.9);
+    border: 1px solid var(--h-accent);
+    padding: 12px 18px;
+    box-shadow: 0 4px 24px var(--h-accent-glow);
+    animation: fadeIn 0.3s ease-out;
+    pointer-events: all;
+  }
+  .invite-notif-text {
+    font-size: 12px; letter-spacing: 2px; color: var(--h-fg);
+    font-weight: 600;
+  }
+
+  /* Center player showcase */
+  .player-showcase {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 3;
+    display: flex; flex-direction: column;
+    align-items: center; gap: 16px;
+    pointer-events: none;
+  }
+  .player-showcase-avatar {
+    width: 160px; height: 160px;
+    border-radius: 50%;
+    border: 3px solid rgba(126,182,225,0.5);
+    box-shadow:
+      0 0 40px rgba(126,182,225,0.2),
+      0 0 80px rgba(126,182,225,0.1),
+      inset 0 0 30px rgba(0,0,0,0.4);
+    background: linear-gradient(135deg, rgba(126,182,225,0.15), rgba(79,163,216,0.08));
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+    animation: avatarFloat 4s ease-in-out infinite;
+  }
+  @keyframes avatarFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+  .player-showcase-avatar img {
+    width: 100%; height: 100%;
+    object-fit: cover; border-radius: 50%;
+  }
+  .player-showcase-avatar .avatar-placeholder {
+    font-size: 64px; font-weight: bold;
+    color: var(--h-accent);
+    font-family: var(--h-sans);
+    text-shadow: 0 0 20px var(--h-accent-glow);
+  }
+  .player-showcase-name {
+    font-size: 20px; font-weight: 700;
+    letter-spacing: 6px; text-transform: uppercase;
+    color: var(--h-fg);
+    text-shadow: 0 2px 12px rgba(0,0,0,0.8);
+  }
+  .player-showcase-tag {
+    font-size: 10px; letter-spacing: 4px;
+    color: var(--h-accent);
+    text-transform: uppercase; font-weight: 600;
+    font-family: var(--h-mono);
+  }
+  /* Glow ring behind avatar */
+  .player-showcase-ring {
+    position: absolute;
+    width: 200px; height: 200px;
+    border-radius: 50%;
+    border: 1px solid rgba(126,182,225,0.15);
+    top: 50%; left: 50%;
+    transform: translate(-50%, calc(-50% - 16px));
+    animation: ringPulse 3s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes ringPulse {
+    0%, 100% { opacity: 0.4; transform: translate(-50%, calc(-50% - 16px)) scale(1); }
+    50% { opacity: 0.8; transform: translate(-50%, calc(-50% - 16px)) scale(1.05); }
+  }
+  .player-showcase-ring-outer {
+    position: absolute;
+    width: 240px; height: 240px;
+    border-radius: 50%;
+    border: 1px solid rgba(126,182,225,0.08);
+    top: 50%; left: 50%;
+    transform: translate(-50%, calc(-50% - 16px));
+    animation: ringPulse 4s ease-in-out infinite 0.5s;
+    pointer-events: none;
+  }
+  /* Platform glow beneath */
+  .player-showcase-platform {
+    width: 180px; height: 6px;
+    background: radial-gradient(ellipse at center, rgba(126,182,225,0.4) 0%, transparent 70%);
+    border-radius: 50%;
+    margin-top: -4px;
+    animation: platformGlow 3s ease-in-out infinite;
+  }
+  @keyframes platformGlow {
+    0%, 100% { opacity: 0.6; transform: scaleX(1); }
+    50% { opacity: 1; transform: scaleX(1.1); }
+  }
+
+  /* Plus buttons / party member slots on showcase */
+  .player-showcase-plus {
+    position: absolute;
+    top: 50%;
+    transform: translateY(calc(-50% - 16px));
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    border: 1px solid rgba(126,182,225,0.4);
+    background: rgba(8,12,18,0.6);
+    color: var(--h-accent);
+    font-size: 20px; font-weight: 300;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; pointer-events: all;
+    transition: border-color 0.2s, background 0.2s, transform 0.2s, box-shadow 0.2s;
+  }
+  .player-showcase-plus:hover {
+    border-color: var(--h-accent);
+    background: rgba(126,182,225,0.12);
+    box-shadow: 0 0 14px var(--h-accent-glow);
+    transform: translateY(calc(-50% - 16px)) scale(1.1);
+  }
+  .player-showcase-plus.left { left: -80px; }
+  .player-showcase-plus.right { right: -80px; }
+
+  /* Party member slot (replaces + when someone joins) */
+  .party-slot {
+    position: absolute;
+    top: 50%;
+    transform: translateY(calc(-50% - 16px));
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    pointer-events: all;
+    animation: memberFadeIn 0.4s ease-out;
+  }
+  .party-slot.left { left: -110px; }
+  .party-slot.right { right: -110px; }
+  .party-slot-avatar {
+    width: 100px; height: 100px;
+    border-radius: 50%;
+    border: 2px solid rgba(126,182,225,0.45);
+    box-shadow: 0 0 24px rgba(126,182,225,0.15);
+    background: linear-gradient(135deg, rgba(126,182,225,0.1), rgba(79,163,216,0.05));
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+    animation: avatarFloat 4s ease-in-out infinite 0.5s;
+  }
+  .party-slot-avatar img {
+    width: 100%; height: 100%; object-fit: cover; border-radius: 50%;
+  }
+  .party-slot-avatar .ps-initial {
+    font-size: 40px; font-weight: bold; color: var(--h-accent);
+    font-family: var(--h-sans);
+    text-shadow: 0 0 12px var(--h-accent-glow);
+  }
+  .party-slot-name {
+    font-size: 11px; font-weight: 600; letter-spacing: 3px;
+    text-transform: uppercase; color: var(--h-fg-dim);
+    text-shadow: 0 1px 6px rgba(0,0,0,0.8);
+  }
+  .party-slot-tag {
+    font-size: 9px; letter-spacing: 2px; color: var(--h-accent);
+    font-family: var(--h-mono); text-transform: uppercase;
+  }
+
+  /* Party leader crown */
+  .leader-crown {
+    position: absolute; top: -18px; left: 50%;
+    transform: translateX(-50%);
+    font-size: 20px; line-height: 1;
+    filter: drop-shadow(0 0 6px rgba(255,204,0,0.6));
+    animation: crownBob 2s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes crownBob {
+    0%, 100% { transform: translateX(-50%) translateY(0); }
+    50% { transform: translateX(-50%) translateY(-3px); }
+  }
+  .player-showcase-avatar { position: relative; }
+  .showcase-crown {
+    position: absolute; top: -20px; left: 50%;
+    transform: translateX(-50%);
+    font-size: 24px; line-height: 1;
+    filter: drop-shadow(0 0 8px rgba(255,204,0,0.6));
+    animation: crownBob 2s ease-in-out infinite;
+    pointer-events: none;
+    display: none;
+  }
+  @keyframes memberFadeIn {
+    from { opacity: 0; transform: translateY(calc(-50% - 16px)) scale(0.8); }
+    to { opacity: 1; transform: translateY(calc(-50% - 16px)) scale(1); }
+  }
+
+  @media (max-width: 720px) {
+    .player-showcase-plus.left { left: -50px; }
+    .player-showcase-plus.right { right: -50px; }
+    .player-showcase-plus { width: 30px; height: 30px; font-size: 17px; }
+    .party-slot.left { left: -75px; }
+    .party-slot.right { right: -75px; }
+    .party-slot-avatar { width: 70px; height: 70px; }
+    .party-slot-avatar .ps-initial { font-size: 28px; }
+  }
 </style>
 
 <script type="module">
@@ -43,31 +427,81 @@
 <img class="halo-bg" src="/assets/hero-poster.jpg" alt="">
 <div class="halo-bg-overlay"></div>
 
+<!-- ── CENTER: Player showcase ────────────────────────── -->
+<div class="player-showcase" id="player-showcase">
+  <div class="player-showcase-ring-outer"></div>
+  <div class="player-showcase-ring"></div>
+  <button class="player-showcase-plus left" id="showcase-plus-left" title="Add friend">+</button>
+  <button class="player-showcase-plus right" id="showcase-plus-right" title="Add friend">+</button>
+  <div class="player-showcase-avatar" id="showcase-avatar">
+    <span class="showcase-crown" id="showcase-crown">👑</span>
+    <span class="avatar-placeholder" id="showcase-initial">?</span>
+  </div>
+  <div class="player-showcase-platform"></div>
+  <div class="player-showcase-name" id="showcase-name">…</div>
+  <div class="player-showcase-tag" id="showcase-tag">Standing by</div>
+</div>
+
+<!-- ── Leave Room button (shown when in a party) ──────── -->
+<button class="leave-room-btn" id="leave-room-btn" style="display:none;">Leave Room</button>
+
+<!-- ── Ready button (shown for non-leader party members) ── -->
+<button class="ready-btn" id="ready-btn" style="display:none;">Ready Up</button>
+
+<!-- ── Incoming invite notification ───────────────────── -->
+<div class="invite-notification" id="invite-notification" style="display:none;">
+  <span class="invite-notif-text" id="invite-notif-text">Player invited you</span>
+  <button class="halo-btn primary" id="invite-accept-btn">Accept</button>
+  <button class="halo-btn" id="invite-decline-btn">Decline</button>
+</div>
+
 <!-- ── TOP LEFT: tabs ─────────────────────────────────── -->
 <nav class="halo-tabs" id="tabs">
   <span class="halo-keychip">Q</span>
   <button class="halo-tab active" data-tab="play">Play</button>
   <button class="halo-tab" data-tab="career">Career</button>
   <button class="halo-tab" data-tab="loadout">Loadout</button>
-  <button class="halo-tab" data-tab="social">Social</button>
   <button class="halo-tab" data-tab="settings">Settings</button>
   <span class="halo-keychip">E</span>
 </nav>
 
-<!-- ── TOP RIGHT: status + news preview ───────────────── -->
+<!-- ── TOP RIGHT: status + invite ──────────────────────── -->
 <aside class="halo-topright">
   <div class="halo-status" id="online-status">
     <span class="halo-status-dot"></span>
     <span id="online-count">— online</span>
   </div>
-  <button class="halo-news" id="news-card">
-    <img src="/assets/mode-pvp.jpg" alt="">
-    <div class="halo-news-meta">
-      <div class="halo-news-eyebrow">Featured</div>
-      <div class="halo-news-title">PVP · 1v1</div>
-    </div>
-  </button>
+  <button class="halo-btn" id="topright-invite" style="letter-spacing:3px;">Invite a Friend</button>
 </aside>
+
+<!-- ── RIGHT SIDEBAR: Social panel (slides in) ────────── -->
+<div class="social-sidebar" id="social-sidebar">
+  <div class="social-sidebar-header">
+    <span class="social-sidebar-title">Social</span>
+    <button class="social-sidebar-close" id="social-sidebar-close">✕</button>
+  </div>
+  <div class="halo-tabs-sub">
+    <button class="halo-subtab active" data-subtab="friends">Friends <span id="friend-count" class="halo-pill">0</span></button>
+    <button class="halo-subtab" data-subtab="requests">Requests <span id="req-count" class="halo-pill halo-pill-accent">0</span></button>
+    <button class="halo-subtab" data-subtab="search">Add</button>
+  </div>
+  <div class="social-sidebar-body">
+    <div class="halo-list" id="friends-list" data-subpanel="friends">
+      <div class="halo-list-empty">No friends yet — add one.</div>
+    </div>
+    <div class="halo-list hidden" id="requests-list" data-subpanel="requests">
+      <div class="halo-list-empty">No incoming requests.</div>
+    </div>
+    <div class="halo-list hidden" data-subpanel="search">
+      <div class="halo-search-row">
+        <input type="text" id="search-input" placeholder="Search by username…" maxlength="16" spellcheck="false">
+        <button class="halo-btn" id="search-add">Send Request</button>
+      </div>
+      <div id="search-results"></div>
+      <div class="halo-search-status" id="search-status"></div>
+    </div>
+  </div>
+</div>
 
 <!-- ── BOTTOM LEFT: vertical menu ─────────────────────── -->
 <main class="halo-main">
@@ -82,10 +516,6 @@
     <button class="halo-item" data-action="mode-pvp">
       <span class="halo-item-label">PVP · 1v1</span>
       <span class="halo-item-meta">Live</span>
-    </button>
-    <button class="halo-item" data-action="invite">
-      <span class="halo-item-label">Invite a friend</span>
-      <span class="halo-item-meta">Code</span>
     </button>
     <button class="halo-item" data-action="mode-zones" disabled>
       <span class="halo-item-label">Capture Zones</span>
@@ -127,42 +557,70 @@
 
   <!-- LOADOUT submenu -->
   <div class="halo-submenu hidden" data-panel="loadout">
-    <button class="halo-item active" data-loadout="rifle-shotgun">
-      <span class="halo-item-label">Rifle + Shotgun</span>
-      <span class="halo-item-meta">Default</span>
-    </button>
-    <button class="halo-item" disabled>
-      <span class="halo-item-label">Rifle + Pistol</span>
-      <span class="halo-item-meta">Soon</span>
-    </button>
-    <button class="halo-item" disabled>
-      <span class="halo-item-label">SMG + Shotgun</span>
-      <span class="halo-item-meta">Soon</span>
-    </button>
-    <p class="tagline">More loadouts shipping next patch.</p>
-  </div>
-
-  <!-- SOCIAL submenu -->
-  <div class="halo-submenu hidden" data-panel="social">
-    <div class="halo-tabs-sub">
-      <button class="halo-subtab active" data-subtab="friends">Friends <span id="friend-count" class="halo-pill">0</span></button>
-      <button class="halo-subtab" data-subtab="requests">Requests <span id="req-count" class="halo-pill halo-pill-accent">0</span></button>
-      <button class="halo-subtab" data-subtab="search">Add</button>
-    </div>
-
-    <div class="halo-list" id="friends-list" data-subpanel="friends">
-      <div class="halo-list-empty">No friends yet — add one.</div>
-    </div>
-    <div class="halo-list hidden" id="requests-list" data-subpanel="requests">
-      <div class="halo-list-empty">No incoming requests.</div>
-    </div>
-    <div class="halo-list hidden" data-subpanel="search">
-      <div class="halo-search-row">
-        <input type="text" id="search-input" placeholder="Search by username…" maxlength="16" spellcheck="false">
-        <button class="halo-btn" id="search-add">Send Request</button>
+    <div class="loadout-panel">
+      <!-- Slot 1 -->
+      <div class="loadout-slot-section">
+        <div class="loadout-slot-header">
+          <span class="loadout-slot-num">1</span>
+          <span class="loadout-slot-title">Primary</span>
+        </div>
+        <div class="loadout-grid" id="loadout-grid-1">
+          <button class="loadout-card" data-slot="1" data-weapon="rifle">
+            <svg viewBox="0 0 100 36" fill="none"><rect x="78" y="15" width="20" height="6" rx="3" fill="#555"/><rect x="38" y="13" width="42" height="7" rx="1.5" fill="#555"/><rect x="38" y="18" width="36" height="8" rx="1.5" fill="#777"/><rect x="18" y="14" width="24" height="8" rx="1.5" fill="#666"/><rect x="4" y="16" width="28" height="4" rx="2" fill="#555"/></svg>
+            <span class="loadout-card-name">Rifle</span>
+            <span class="loadout-card-stat">DMG 25 · Semi</span>
+          </button>
+          <button class="loadout-card" data-slot="1" data-weapon="smg">
+            <svg viewBox="0 0 100 36" fill="none"><rect x="60" y="14" width="22" height="8" rx="2" fill="#3a3a5a"/><rect x="30" y="13" width="34" height="10" rx="2" fill="#2a2a3a"/><rect x="10" y="15" width="24" height="6" rx="2" fill="#2a2a3a"/><rect x="40" y="22" width="4" height="10" rx="1" fill="#222"/><line x1="30" y1="18" x2="62" y2="18" stroke="#44aaff" stroke-width="1.5"/></svg>
+            <span class="loadout-card-name">SMG</span>
+            <span class="loadout-card-stat">DMG 14 · Auto</span>
+          </button>
+          <button class="loadout-card" data-slot="1" data-weapon="shotgun">
+            <svg viewBox="0 0 100 36" fill="none"><rect x="74" y="14" width="24" height="8" rx="3" fill="#5a4228"/><rect x="36" y="12" width="42" height="12" rx="2" fill="#5a4228"/><rect x="10" y="11" width="66" height="3" rx="1" fill="#3a2a1a"/><rect x="2" y="14" width="26" height="8" rx="3" fill="#444"/></svg>
+            <span class="loadout-card-name">Shotgun</span>
+            <span class="loadout-card-stat">DMG 21×5 · Pump</span>
+          </button>
+          <button class="loadout-card" data-slot="1" data-weapon="sniper">
+            <svg viewBox="0 0 100 36" fill="none"><rect x="10" y="16" width="80" height="5" rx="2" fill="#2a2a2a"/><rect x="8" y="14" width="50" height="3" rx="1" fill="#111"/><circle cx="42" cy="12" r="4" stroke="#ffcc00" stroke-width="1" fill="none"/><rect x="60" y="13" width="20" height="6" rx="2" fill="#3d2b1a"/><rect x="36" y="20" width="3" height="8" rx="1" fill="#111"/></svg>
+            <span class="loadout-card-name">Sniper</span>
+            <span class="loadout-card-stat">DMG 150 · Bolt</span>
+          </button>
+        </div>
       </div>
-      <div id="search-results"></div>
-      <div class="halo-search-status" id="search-status"></div>
+      <!-- Slot 2 -->
+      <div class="loadout-slot-section">
+        <div class="loadout-slot-header">
+          <span class="loadout-slot-num">2</span>
+          <span class="loadout-slot-title">Secondary</span>
+        </div>
+        <div class="loadout-grid" id="loadout-grid-2">
+          <button class="loadout-card" data-slot="2" data-weapon="rifle">
+            <svg viewBox="0 0 100 36" fill="none"><rect x="78" y="15" width="20" height="6" rx="3" fill="#555"/><rect x="38" y="13" width="42" height="7" rx="1.5" fill="#555"/><rect x="38" y="18" width="36" height="8" rx="1.5" fill="#777"/><rect x="18" y="14" width="24" height="8" rx="1.5" fill="#666"/><rect x="4" y="16" width="28" height="4" rx="2" fill="#555"/></svg>
+            <span class="loadout-card-name">Rifle</span>
+            <span class="loadout-card-stat">DMG 25 · Semi</span>
+          </button>
+          <button class="loadout-card" data-slot="2" data-weapon="smg">
+            <svg viewBox="0 0 100 36" fill="none"><rect x="60" y="14" width="22" height="8" rx="2" fill="#3a3a5a"/><rect x="30" y="13" width="34" height="10" rx="2" fill="#2a2a3a"/><rect x="10" y="15" width="24" height="6" rx="2" fill="#2a2a3a"/><rect x="40" y="22" width="4" height="10" rx="1" fill="#222"/><line x1="30" y1="18" x2="62" y2="18" stroke="#44aaff" stroke-width="1.5"/></svg>
+            <span class="loadout-card-name">SMG</span>
+            <span class="loadout-card-stat">DMG 14 · Auto</span>
+          </button>
+          <button class="loadout-card" data-slot="2" data-weapon="shotgun">
+            <svg viewBox="0 0 100 36" fill="none"><rect x="74" y="14" width="24" height="8" rx="3" fill="#5a4228"/><rect x="36" y="12" width="42" height="12" rx="2" fill="#5a4228"/><rect x="10" y="11" width="66" height="3" rx="1" fill="#3a2a1a"/><rect x="2" y="14" width="26" height="8" rx="3" fill="#444"/></svg>
+            <span class="loadout-card-name">Shotgun</span>
+            <span class="loadout-card-stat">DMG 21×5 · Pump</span>
+          </button>
+          <button class="loadout-card" data-slot="2" data-weapon="sniper">
+            <svg viewBox="0 0 100 36" fill="none"><rect x="10" y="16" width="80" height="5" rx="2" fill="#2a2a2a"/><rect x="8" y="14" width="50" height="3" rx="1" fill="#111"/><circle cx="42" cy="12" r="4" stroke="#ffcc00" stroke-width="1" fill="none"/><rect x="60" y="13" width="20" height="6" rx="2" fill="#3d2b1a"/><rect x="36" y="20" width="3" height="8" rx="1" fill="#111"/></svg>
+            <span class="loadout-card-name">Sniper</span>
+            <span class="loadout-card-stat">DMG 150 · Bolt</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    <!-- Weapon detail panel -->
+    <div class="loadout-detail" id="loadout-detail">
+      <div class="loadout-detail-name" id="loadout-detail-name">—</div>
+      <div class="loadout-detail-stats" id="loadout-detail-stats"></div>
     </div>
   </div>
 

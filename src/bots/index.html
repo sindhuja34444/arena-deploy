@@ -102,6 +102,48 @@
     display: none;
   }
 
+  /* Sniper scope overlay */
+  #sniper-scope {
+    position: absolute; inset: 0;
+    pointer-events: none; z-index: 10;
+  }
+  .scope-ring {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(80vh, 80vw); height: min(80vh, 80vw);
+    border-radius: 50%;
+    border: 2px solid rgba(200,200,200,0.6);
+    box-shadow: 0 0 0 2000px rgba(0,0,0,0.97);
+  }
+  .scope-cross-h {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(70vh, 70vw); height: 1px;
+    background: rgba(200,200,200,0.5);
+  }
+  .scope-cross-v {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 1px; height: min(70vh, 70vw);
+    background: rgba(200,200,200,0.5);
+  }
+  .scope-dot {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 4px; height: 4px; border-radius: 50%;
+    background: #ff2200;
+    box-shadow: 0 0 4px #ff2200, 0 0 8px #ff2200;
+  }
+  .scope-mil {
+    position: absolute; left: 50%;
+    transform: translateX(-50%);
+    width: 8px; height: 1px;
+    background: rgba(200,200,200,0.4);
+  }
+  .scope-mil-1 { top: calc(50% + 40px); }
+  .scope-mil-2 { top: calc(50% + 80px); }
+  .scope-mil-3 { top: calc(50% + 120px); }
+
   /* Minimap */
   #minimap-wrap {
     position: absolute; top: 16px; left: 16px;
@@ -752,6 +794,16 @@
     <div class="dot"></div>
   </div>
   <div id="ads-vignette"></div>
+  <!-- Sniper scope overlay -->
+  <div id="sniper-scope" style="display:none;">
+    <div class="scope-ring"></div>
+    <div class="scope-cross-h"></div>
+    <div class="scope-cross-v"></div>
+    <div class="scope-dot"></div>
+    <div class="scope-mil scope-mil-1"></div>
+    <div class="scope-mil scope-mil-2"></div>
+    <div class="scope-mil scope-mil-3"></div>
+  </div>
   <div id="reload-crosshair">
     <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
       <!-- Track -->
@@ -852,30 +904,13 @@
   <div id="inventory">
     <div class="inv-slot active" id="inv-slot-1">
       <div class="inv-key" id="hud-key-weapon1">1</div>
-      <svg viewBox="0 0 100 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="78" y="15" width="20" height="6" rx="3" fill="#1a1a1a"/>
-        <rect x="38" y="13" width="42" height="7" rx="1.5" fill="#1a1a1a"/>
-        <rect x="38" y="18" width="36" height="8" rx="1.5" fill="#4a4a4a"/>
-        <rect x="38" y="11" width="38" height="2.5" rx="0.5" fill="#cc1111"/>
-        <rect x="18" y="14" width="24" height="8" rx="1.5" fill="#3a3a3a"/>
-        <rect x="4" y="16" width="28" height="4" rx="2" fill="#1a1a1a"/>
-        <rect x="2" y="14.5" width="6" height="7" rx="1" fill="#cc1111"/>
-        <path d="M52 25 L52 35 Q52 36 50 36 L46 36 Q44 36 44 35 L44 27 Q44 25 46 25 Z" fill="#111"/>
-      </svg>
-      <div class="inv-label">Rifle</div>
+      <div id="inv-slot-1-svg"></div>
+      <div class="inv-label" id="inv-slot-1-label">Rifle</div>
     </div>
     <div class="inv-slot" id="inv-slot-2">
       <div class="inv-key" id="hud-key-weapon2">2</div>
-      <svg viewBox="0 0 100 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="74" y="14" width="24" height="8" rx="3" fill="#2a1a0a"/>
-        <rect x="36" y="12" width="42" height="12" rx="2" fill="#3a2a1a"/>
-        <rect x="10" y="11" width="66" height="3" rx="1" fill="#2a1a0a"/>
-        <rect x="14" y="17" width="20" height="7" rx="2" fill="#cc4400"/>
-        <rect x="2" y="14" width="26" height="8" rx="3" fill="#1a1a1a"/>
-        <rect x="1" y="13" width="5" height="10" rx="1.5" fill="#cc4400"/>
-        <path d="M56 23 L56 34 Q56 36 54 36 L50 36 Q48 36 48 34 L48 25 Q48 23 50 23 Z" fill="#2a1a0a"/>
-      </svg>
-      <div class="inv-label">Shotgun</div>
+      <div id="inv-slot-2-svg"></div>
+      <div class="inv-label" id="inv-slot-2-label">Shotgun</div>
     </div>
     <!-- Ability slot -->
     <div id="ability-slot" class="ready">
@@ -944,6 +979,23 @@
   <button class="screen-btn" id="restart-btn">Play Again</button>
 </div>
 
+<script type="module">
+  import { initClerk, signIn, getToken } from '../shared/auth.js';
+  import { getConvex } from '../shared/convex.js';
+  import { api } from '../../convex/_generated/api.js';
+  try {
+    const c = await initClerk();
+    if (c.user) {
+      const u = c.user;
+      const username = u.username || u.firstName || u.primaryEmailAddress?.emailAddress.split('@')[0] || 'operator';
+      window.__arenaAuth = { user: u, username, getToken };
+      localStorage.setItem('arenaPlayerName', username);
+    }
+  } catch (e) { console.warn('auth skipped', e?.message); }
+  // Expose Convex + api for stat reporting from non-module script
+  window.__arenaConvex = getConvex();
+  window.__arenaApi = api;
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 // ─────────────────────────────────────────────
@@ -992,6 +1044,22 @@ window.addEventListener('load', () => {
   if (el('hud-key-weapon2')) el('hud-key-weapon2').textContent = keyLabel(KB.weapon2);
   if (el('hud-key-ability')) el('hud-key-ability').textContent = keyLabel(KB.ability);
   if (el('hud-key-pickup'))  el('hud-key-pickup').textContent  = keyLabel(KB.pickup);
+  // Update slot labels based on loadout
+  const slot1Label = el('inv-slot-1-label');
+  const slot2Label = el('inv-slot-2-label');
+  if (slot1Label) slot1Label.textContent = {rifle:'Rifle',smg:'SMG',shotgun:'Shotgun',sniper:'Sniper'}[LOADOUT_SLOT1] || 'Rifle';
+  if (slot2Label) slot2Label.textContent = {rifle:'Rifle',smg:'SMG',shotgun:'Shotgun',sniper:'Sniper'}[LOADOUT_SLOT2] || 'Shotgun';
+  // Update slot SVG icons based on loadout
+  const WEAPON_SVGS = {
+    rifle: `<svg viewBox="0 0 100 36" fill="none"><rect x="78" y="15" width="20" height="6" rx="3" fill="#1a1a1a"/><rect x="38" y="13" width="42" height="7" rx="1.5" fill="#1a1a1a"/><rect x="38" y="18" width="36" height="8" rx="1.5" fill="#4a4a4a"/><rect x="38" y="11" width="38" height="2.5" rx="0.5" fill="#cc1111"/><rect x="18" y="14" width="24" height="8" rx="1.5" fill="#3a3a3a"/><rect x="4" y="16" width="28" height="4" rx="2" fill="#1a1a1a"/><rect x="2" y="14.5" width="6" height="7" rx="1" fill="#cc1111"/><path d="M52 25 L52 35 Q52 36 50 36 L46 36 Q44 36 44 35 L44 27 Q44 25 46 25 Z" fill="#111"/></svg>`,
+    shotgun: `<svg viewBox="0 0 100 36" fill="none"><rect x="74" y="14" width="24" height="8" rx="3" fill="#2a1a0a"/><rect x="36" y="12" width="42" height="12" rx="2" fill="#3a2a1a"/><rect x="10" y="11" width="66" height="3" rx="1" fill="#2a1a0a"/><rect x="14" y="17" width="20" height="7" rx="2" fill="#cc4400"/><rect x="2" y="14" width="26" height="8" rx="3" fill="#1a1a1a"/><rect x="1" y="13" width="5" height="10" rx="1.5" fill="#cc4400"/><path d="M56 23 L56 34 Q56 36 54 36 L50 36 Q48 36 48 34 L48 25 Q48 23 50 23 Z" fill="#2a1a0a"/></svg>`,
+    smg: `<svg viewBox="0 0 100 36" fill="none"><rect x="60" y="14" width="22" height="8" rx="2" fill="#3a3a5a"/><rect x="30" y="13" width="34" height="10" rx="2" fill="#2a2a3a"/><rect x="10" y="15" width="24" height="6" rx="2" fill="#2a2a3a"/><rect x="40" y="22" width="4" height="10" rx="1" fill="#222"/><line x1="30" y1="18" x2="62" y2="18" stroke="#44aaff" stroke-width="1.5"/><rect x="62" y="11" width="16" height="4" rx="1" fill="#2a2a3a"/></svg>`,
+    sniper: `<svg viewBox="0 0 100 36" fill="none"><rect x="10" y="16" width="80" height="5" rx="2" fill="#2a2a2a"/><rect x="8" y="14" width="50" height="3" rx="1" fill="#111"/><circle cx="42" cy="12" r="4" stroke="#ffcc00" stroke-width="1" fill="none"/><rect x="60" y="13" width="20" height="6" rx="2" fill="#3d2b1a"/><rect x="36" y="20" width="3" height="8" rx="1" fill="#111"/></svg>`,
+  };
+  const s1svg = el('inv-slot-1-svg');
+  const s2svg = el('inv-slot-2-svg');
+  if (s1svg) s1svg.innerHTML = WEAPON_SVGS[LOADOUT_SLOT1] || WEAPON_SVGS.rifle;
+  if (s2svg) s2svg.innerHTML = WEAPON_SVGS[LOADOUT_SLOT2] || WEAPON_SVGS.shotgun;
 });
 
 // ─────────────────────────────────────────────
@@ -2971,6 +3039,7 @@ const WEAPONS = {
     fireInterval: 0,
     tracerColor: 0xff2200,
     tracerCore: 0xffaaaa,
+    auto: false,
   },
   shotgun: {
     name: 'shotgun',
@@ -2982,11 +3051,43 @@ const WEAPONS = {
     fireInterval: 600,
     tracerColor: 0xff8800,
     tracerCore: 0xffddaa,
+    auto: false,
+  },
+  smg: {
+    name: 'smg',
+    maxAmmo: 35,
+    reloadTime: 1500,
+    damage: 14,
+    pellets: 1,
+    spread: 0.04,
+    fireInterval: 75,
+    tracerColor: 0x44aaff,
+    tracerCore: 0xaaddff,
+    auto: true,
+  },
+  sniper: {
+    name: 'sniper',
+    maxAmmo: 3,
+    reloadTime: 2800,
+    damage: 150,
+    pellets: 1,
+    spread: 0.25,
+    fireInterval: 1200,
+    tracerColor: 0xffff00,
+    tracerCore: 0xffffaa,
+    auto: false,
+    scopeZoom: 15,
   },
 };
 
+// Loadout: which weapons go in slot 1 and slot 2
+const _loadoutSlot1 = localStorage.getItem('arenaLoadoutSlot1') || 'rifle';
+const _loadoutSlot2 = localStorage.getItem('arenaLoadoutSlot2') || 'shotgun';
+const LOADOUT_SLOT1 = WEAPONS[_loadoutSlot1] ? _loadoutSlot1 : 'rifle';
+const LOADOUT_SLOT2 = WEAPONS[_loadoutSlot2] ? _loadoutSlot2 : 'shotgun';
+
 let currentWeapon = WEAPONS.rifle;
-const weaponAmmo = { rifle: 30, shotgun: 6 };
+const weaponAmmo = { rifle: 30, shotgun: 6, smg: 35, sniper: 3 };
 
 function switchWeapon(weaponKey) {
   if (state.reloading) return;
@@ -2997,15 +3098,19 @@ function switchWeapon(weaponKey) {
   currentWeapon = w;
   state.ammo = weaponAmmo[weaponKey];
 
-  gunGroup.visible = (weaponKey === 'rifle');
-  sgGroup.visible  = (weaponKey === 'shotgun');
+  gunGroup.visible   = (weaponKey === 'rifle');
+  sgGroup.visible    = (weaponKey === 'shotgun');
+  smgGroup.visible   = (weaponKey === 'smg');
+  sniperGroup.visible = (weaponKey === 'sniper');
 
-  document.getElementById('crosshair').style.opacity    = weaponKey === 'rifle' ? '1' : '0';
+  document.getElementById('crosshair').style.opacity    = (weaponKey === 'rifle' || weaponKey === 'smg' || weaponKey === 'sniper') ? '1' : '0';
   document.getElementById('crosshair-sg').style.opacity = weaponKey === 'shotgun' ? '1' : '0';
   document.getElementById('crosshair-ads').style.opacity = '0';
+  // Hide scope overlay when switching away from sniper
+  document.getElementById('sniper-scope').style.display = 'none';
 
-  document.getElementById('inv-slot-1').classList.toggle('active', weaponKey === 'rifle');
-  document.getElementById('inv-slot-2').classList.toggle('active', weaponKey === 'shotgun');
+  document.getElementById('inv-slot-1').classList.toggle('active', weaponKey === LOADOUT_SLOT1);
+  document.getElementById('inv-slot-2').classList.toggle('active', weaponKey === LOADOUT_SLOT2);
 
   updateAmmoUI();
 }
@@ -3253,10 +3358,160 @@ camera.add(sgGroup);
 sgRightHand = makeHand(sgGroup, 0.0, -0.14, 0.08, -0.2, 0, 0, false);
 sgLeftHand  = makeHand(sgGroup, 0.0, -0.02, -0.26, 0.1, 0, 0, true);
 
+// ─────────────────────────────────────────────
+//  SMG VIEWMODEL
+// ─────────────────────────────────────────────
+const smgGroup = new THREE.Group();
+
+const smgBody   = new THREE.MeshLambertMaterial({ color: 0x2a2a3a });
+const smgDark   = new THREE.MeshLambertMaterial({ color: 0x111118 });
+const smgAccent = new THREE.MeshLambertMaterial({ color: 0x2266cc });
+const smgGlow   = new THREE.MeshBasicMaterial({ color: 0x44aaff });
+
+// Compact receiver
+const smgReceiver = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.09, 0.32), smgBody);
+smgReceiver.position.set(0, 0, 0);
+smgGroup.add(smgReceiver);
+
+// Top rail
+const smgRail = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.015, 0.28), smgDark);
+smgRail.position.set(0, 0.052, -0.02);
+smgGroup.add(smgRail);
+
+// Barrel (shorter than rifle)
+const smgBarrel = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.22, 10), smgDark);
+smgBarrel.rotation.x = Math.PI / 2;
+smgBarrel.position.set(0, 0.02, -0.26);
+smgGroup.add(smgBarrel);
+
+// Suppressor/muzzle
+const smgMuzzle = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.020, 0.06, 8), smgBody);
+smgMuzzle.rotation.x = Math.PI / 2;
+smgMuzzle.position.set(0, 0.02, -0.38);
+smgGroup.add(smgMuzzle);
+
+// Foregrip
+const smgForegrip = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.08, 0.04), smgDark);
+smgForegrip.position.set(0, -0.07, -0.12);
+smgGroup.add(smgForegrip);
+
+// Magazine (curved)
+const smgMag = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.12, 0.04), smgDark);
+smgMag.position.set(0, -0.10, 0.04);
+smgMag.rotation.x = 0.1;
+smgGroup.add(smgMag);
+
+// Pistol grip
+const smgGrip = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.09, 0.035), smgDark);
+smgGrip.position.set(0, -0.08, 0.10);
+smgGrip.rotation.x = -0.2;
+smgGroup.add(smgGrip);
+
+// Stock (folded/compact)
+const smgStock = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.04, 0.12), smgBody);
+smgStock.position.set(0, 0.01, 0.22);
+smgGroup.add(smgStock);
+
+// Blue accent glow strip
+const smgStrip = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.008, 0.20), smgGlow);
+smgStrip.position.set(0.035, 0.0, -0.02);
+smgGroup.add(smgStrip);
+
+// Side accent
+const smgStrip2 = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.008, 0.20), smgGlow);
+smgStrip2.position.set(-0.035, 0.0, -0.02);
+smgGroup.add(smgStrip2);
+
+smgGroup.position.set(0.22, -0.22, -0.44);
+smgGroup.visible = false;
+camera.add(smgGroup);
+
+// ─────────────────────────────────────────────
+//  SNIPER VIEWMODEL
+// ─────────────────────────────────────────────
+const sniperGroup = new THREE.Group();
+const snpBody  = new THREE.MeshLambertMaterial({ color: 0x2a2a2a });
+const snpDark  = new THREE.MeshLambertMaterial({ color: 0x111111 });
+const snpWood  = new THREE.MeshLambertMaterial({ color: 0x3d2b1a });
+const snpGlow  = new THREE.MeshBasicMaterial({ color: 0xffcc00 });
+
+// Long receiver
+const snpReceiver = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.08, 0.55), snpBody);
+snpReceiver.position.set(0, 0, -0.05);
+sniperGroup.add(snpReceiver);
+
+// Long barrel
+const snpBarrel = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.50, 10), snpDark);
+snpBarrel.rotation.x = Math.PI / 2;
+snpBarrel.position.set(0, 0.03, -0.50);
+sniperGroup.add(snpBarrel);
+
+// Muzzle brake
+const snpMuzzle = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.018, 0.06, 8), snpBody);
+snpMuzzle.rotation.x = Math.PI / 2;
+snpMuzzle.position.set(0, 0.03, -0.76);
+sniperGroup.add(snpMuzzle);
+
+// Scope body
+const snpScope = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.18, 10), snpDark);
+snpScope.rotation.x = Math.PI / 2;
+snpScope.position.set(0, 0.075, -0.08);
+sniperGroup.add(snpScope);
+// Scope lens (front)
+const snpLens = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.01, 10), snpGlow);
+snpLens.rotation.x = Math.PI / 2;
+snpLens.position.set(0, 0.075, -0.17);
+sniperGroup.add(snpLens);
+// Scope mount
+const snpMount = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.02, 0.10), snpBody);
+snpMount.position.set(0, 0.055, -0.08);
+sniperGroup.add(snpMount);
+
+// Stock (wooden)
+const snpStock = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.07, 0.22), snpWood);
+snpStock.position.set(0, -0.01, 0.30);
+sniperGroup.add(snpStock);
+// Cheek rest
+const snpCheek = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.025, 0.14), snpWood);
+snpCheek.position.set(0, 0.03, 0.28);
+sniperGroup.add(snpCheek);
+
+// Magazine
+const snpMag = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.08, 0.04), snpDark);
+snpMag.position.set(0, -0.08, 0.02);
+sniperGroup.add(snpMag);
+
+// Grip
+const snpGrip = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.09, 0.03), snpDark);
+snpGrip.position.set(0, -0.08, 0.12);
+snpGrip.rotation.x = -0.2;
+sniperGroup.add(snpGrip);
+
+// Bipod legs (folded)
+const snpBipod1 = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.06, 0.01), snpBody);
+snpBipod1.position.set(-0.02, -0.06, -0.30);
+snpBipod1.rotation.x = 0.3;
+sniperGroup.add(snpBipod1);
+const snpBipod2 = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.06, 0.01), snpBody);
+snpBipod2.position.set(0.02, -0.06, -0.30);
+snpBipod2.rotation.x = 0.3;
+sniperGroup.add(snpBipod2);
+
+sniperGroup.position.set(0.22, -0.24, -0.50);
+sniperGroup.visible = false;
+camera.add(sniperGroup);
+
 function getMuzzleWorldPos() {
-  const activeGroup = currentWeapon.name === 'shotgun' ? sgGroup : gunGroup;
+  const activeGroup = currentWeapon.name === 'shotgun' ? sgGroup
+    : currentWeapon.name === 'smg' ? smgGroup
+    : currentWeapon.name === 'sniper' ? sniperGroup
+    : gunGroup;
   const local = currentWeapon.name === 'shotgun'
     ? new THREE.Vector3(0, 0.04, -0.60)
+    : currentWeapon.name === 'smg'
+    ? new THREE.Vector3(0, 0.02, -0.42)
+    : currentWeapon.name === 'sniper'
+    ? new THREE.Vector3(0, 0.03, -0.80)
     : new THREE.Vector3(0, 0.06, -0.61);
   return local.applyMatrix4(activeGroup.matrixWorld);
 }
@@ -3277,27 +3532,48 @@ function updateGunAnim(dt) {
   adsProgress += (isADS ? 1 : -1) * ADS_SPEED * dt;
   adsProgress = Math.max(0, Math.min(1, adsProgress));
 
-  const targetFOV = isADS ? 35 : 75;
+  const targetFOV = isADS ? (currentWeapon.scopeZoom ? currentWeapon.scopeZoom : 35) : 75;
   camera.fov += (targetFOV - camera.fov) * Math.min(1, ADS_SPEED * dt);
   camera.updateProjectionMatrix();
 
-  if (currentWeapon.name === 'rifle') {
+  if (currentWeapon.name === 'sniper') {
+    // Sniper: show scope overlay when fully ADS, hide all crosshairs
+    const scopeEl = document.getElementById('sniper-scope');
+    if (adsProgress > 0.85) {
+      scopeEl.style.display = 'block';
+      sniperGroup.visible = false; // hide gun model when scoped
+      document.getElementById('crosshair').style.opacity = '0';
+      document.getElementById('crosshair-ads').style.opacity = '0';
+    } else {
+      scopeEl.style.display = 'none';
+      sniperGroup.visible = true;
+      document.getElementById('crosshair').style.opacity = String(1 - adsProgress);
+      document.getElementById('crosshair-ads').style.opacity = '0';
+    }
+    document.getElementById('crosshair-sg').style.opacity = '0';
+  } else if (currentWeapon.name === 'rifle' || currentWeapon.name === 'smg') {
+    document.getElementById('sniper-scope').style.display = 'none';
     document.getElementById('crosshair').style.opacity     = 1 - adsProgress;
     document.getElementById('crosshair-ads').style.opacity = adsProgress;
     document.getElementById('crosshair-sg').style.opacity  = '0';
   } else {
     // Shotgun: brackets shrink during ADS instead of disappearing
+    document.getElementById('sniper-scope').style.display = 'none';
     document.getElementById('crosshair-sg').style.opacity  = '1';
     document.getElementById('crosshair-ads').style.opacity = '0';
     document.getElementById('crosshair').style.opacity     = '0';
   }
-  document.getElementById('ads-vignette').style.opacity   = adsProgress * 0.85;
+  document.getElementById('ads-vignette').style.opacity   = currentWeapon.name === 'sniper' ? '0' : adsProgress * 0.85;
 
-  const activeGroup = currentWeapon.name === 'shotgun' ? sgGroup : gunGroup;
+  const activeGroup = currentWeapon.name === 'shotgun' ? sgGroup : (currentWeapon.name === 'smg' ? smgGroup : (currentWeapon.name === 'sniper' ? sniperGroup : gunGroup));
   const sgRestPos = new THREE.Vector3(0.24, -0.24, -0.48);
   const sgADSPos  = new THREE.Vector3(0.05, -0.30, -0.48);
-  const activeRest = currentWeapon.name === 'shotgun' ? sgRestPos : gunRestPos;
-  const activeADS  = currentWeapon.name === 'shotgun' ? sgADSPos  : gunADSPos;
+  const smgRestPos = new THREE.Vector3(0.22, -0.22, -0.44);
+  const smgADSPos  = new THREE.Vector3(0.05, -0.28, -0.44);
+  const sniperRestPos = new THREE.Vector3(0.22, -0.24, -0.50);
+  const sniperADSPos  = new THREE.Vector3(0.0, -0.20, -0.50);
+  const activeRest = currentWeapon.name === 'shotgun' ? sgRestPos : (currentWeapon.name === 'smg' ? smgRestPos : (currentWeapon.name === 'sniper' ? sniperRestPos : gunRestPos));
+  const activeADS  = currentWeapon.name === 'shotgun' ? sgADSPos  : (currentWeapon.name === 'smg' ? smgADSPos  : (currentWeapon.name === 'sniper' ? sniperADSPos  : gunADSPos));
 
   if (gunKickTimer > 0) {
     gunKickTimer -= dt;
@@ -3423,7 +3699,10 @@ function shoot() {
   const now = performance.now();
   if (currentWeapon.fireInterval > 0 && now - (state.lastFireTime || 0) < currentWeapon.fireInterval) return;
   state.lastFireTime = now;
-  if (currentWeapon.name === 'shotgun') Audio.shotgun(); else Audio.rifle();
+  if (currentWeapon.name === 'shotgun') Audio.shotgun();
+  else if (currentWeapon.name === 'smg') Audio.rifle();
+  else if (currentWeapon.name === 'sniper') Audio.shotgun();
+  else Audio.rifle();
   state.ammo--;
   weaponAmmo[currentWeapon.name] = state.ammo;
   updateAmmoUI();
@@ -3431,8 +3710,10 @@ function shoot() {
 
   gunKickTimer = GUN_KICK_DUR;
   triggerHandRecoil();
-  applyRecoil(currentWeapon.name === 'shotgun' ? 0.09 : 0.022);
+  applyRecoil(currentWeapon.name === 'shotgun' ? 0.09 : currentWeapon.name === 'smg' ? 0.035 : currentWeapon.name === 'sniper' ? 0.12 : 0.022);
   if (currentWeapon.name === 'shotgun') shakeIntensity = Math.min(0.06, shakeIntensity + 0.045);
+  if (currentWeapon.name === 'smg') shakeIntensity = Math.min(0.04, shakeIntensity + 0.02);
+  if (currentWeapon.name === 'sniper') shakeIntensity = Math.min(0.08, shakeIntensity + 0.06);
   addSpread();
 
   spawnMuzzleFlash(getMuzzleWorldPos(), currentWeapon.name === 'shotgun');
@@ -3441,7 +3722,10 @@ function shoot() {
   const baseDir = raycaster.ray.direction.clone().normalize();
   const pellets = currentWeapon.pellets;
   const adsMult = state.mouseButtons[2] ? SPREAD_ADS_MULT : 1.0;
-  const spread  = currentWeapon.spread + currentSpread * 0.06 * adsMult;
+  // Sniper: perfectly accurate when scoped (ADS > 0.85), huge spread when hip-firing
+  const spread  = (currentWeapon.name === 'sniper' && adsProgress > 0.85)
+    ? 0
+    : currentWeapon.spread + currentSpread * 0.06 * adsMult;
 
   for (let p = 0; p < pellets; p++) {
     const d = baseDir.clone();
@@ -3552,9 +3836,9 @@ let currentSpread = 0;
 
 // FIX: SPREAD_RECOVERY was missing — now defined as a constant
 const SPREAD_RECOVERY    = 2.2;
-const SPREAD_PER_SHOT_W  = { rifle: 0.18,  shotgun: 0.50  };
-const SPREAD_MAX_W       = { rifle: 0.75,  shotgun: 1.0   };
-const SPREAD_RECOVERY_W  = { rifle: 2.2,   shotgun: 1.4   };
+const SPREAD_PER_SHOT_W  = { rifle: 0.18,  shotgun: 0.50, smg: 0.28, sniper: 0.0  };
+const SPREAD_MAX_W       = { rifle: 0.75,  shotgun: 1.0,  smg: 1.2,  sniper: 0.0  };
+const SPREAD_RECOVERY_W  = { rifle: 2.2,   shotgun: 1.4,  smg: 1.8,  sniper: 0.0  };
 const SPREAD_MOVE_ADD    = 0.30;
 const SPREAD_SPRINT_ADD  = 0.55;
 const SPREAD_ADS_MULT    = 0.25;
@@ -3610,14 +3894,21 @@ function updateRecoil(dt) {
 }
 
 function updateCrosshairSpread() {
-  const base = 26;
-  const expanded = base + currentSpread * 55;
+  const isADS = state.mouseButtons[2];
+  // Sniper: huge crosshair when hip-firing, shrinks to nothing when ADS
+  let base, expanded;
+  if (currentWeapon.name === 'sniper') {
+    base = 80 * (1 - adsProgress);
+    expanded = base;
+  } else {
+    base = 26;
+    expanded = base + currentSpread * 55;
+  }
   const ch = document.getElementById('crosshair');
   const sg = document.getElementById('crosshair-sg');
   ch.style.width  = expanded + 'px';
   ch.style.height = expanded + 'px';
   // Shotgun brackets: expand from base (or ADS-shrunk base) + spread
-  const isADS = state.mouseButtons[2];
   const sgBase = isADS ? 18 : 36;
   const sgExpanded = sgBase + currentSpread * 40;
   sg.style.width  = sgExpanded + 'px';
@@ -4878,6 +5169,18 @@ function triggerGameOver() {
   document.getElementById('final-highscore-num').textContent = highScore.toLocaleString();
   document.getElementById('new-highscore-msg').style.display = isNew ? 'block' : 'none';
   document.getElementById('gameover-screen').style.display = 'flex';
+
+  // Report kills + 1 death to Convex
+  try {
+    const convex = window.__arenaConvex;
+    const api = window.__arenaApi;
+    if (convex && api) {
+      convex.mutation(api.stats.reportGameStats, {
+        kills: state.killCount,
+        deaths: 1,
+      }).catch(e => console.warn('stats sync failed:', e?.message));
+    }
+  } catch (e) { console.warn('stats report error:', e?.message); }
 }
 
 // ─────────────────────────────────────────────
@@ -4916,8 +5219,8 @@ document.addEventListener('keydown', e => {
   }
   state.keys[e.code] = true;
   if (e.code === KB.reload  && state.running && !state.reloading && state.ammo < currentWeapon.maxAmmo) startReload();
-  if (e.code === KB.weapon1 && state.running) switchWeapon('rifle');
-  if (e.code === KB.weapon2 && state.running) switchWeapon('shotgun');
+  if (e.code === KB.weapon1 && state.running) switchWeapon(LOADOUT_SLOT1);
+  if (e.code === KB.weapon2 && state.running) switchWeapon(LOADOUT_SLOT2);
   if (e.code === KB.ability && state.running) activateAbility();
   e.preventDefault();
 });
@@ -4931,12 +5234,14 @@ document.addEventListener('mousedown', e => {
       canvas.requestPointerLock();
       return;
     }
+    state.mouseButtons[0] = true;
     shoot();
   }
   if (e.button === 2) state.mouseButtons[2] = true;
 });
 
 document.addEventListener('mouseup', e => {
+  if (e.button === 0) state.mouseButtons[0] = false;
   if (e.button === 2) state.mouseButtons[2] = false;
 });
 
@@ -5000,12 +5305,16 @@ function startGame() {
   document.getElementById('streak-announce').classList.remove('show');
   state.playerHP = SETTINGS.PLAYER_HP;
   state.playerShield = SETTINGS.PLAYER_SHIELD;
-  state.ammo = SETTINGS.MAX_AMMO;
-  currentWeapon = WEAPONS.rifle;
+  state.ammo = WEAPONS[LOADOUT_SLOT1].maxAmmo;
+  currentWeapon = WEAPONS[LOADOUT_SLOT1];
   weaponAmmo.rifle = 30;
-  weaponAmmo.shotgun = 8;
-  gunGroup.visible = true;
-  sgGroup.visible = false;
+  weaponAmmo.shotgun = 6;
+  weaponAmmo.smg = 35;
+  weaponAmmo.sniper = 3;
+  gunGroup.visible = (LOADOUT_SLOT1 === 'rifle');
+  sgGroup.visible = (LOADOUT_SLOT1 === 'shotgun');
+  smgGroup.visible = (LOADOUT_SLOT1 === 'smg');
+  sniperGroup.visible = (LOADOUT_SLOT1 === 'sniper');
   document.getElementById('inv-slot-1').classList.add('active');
   document.getElementById('inv-slot-2').classList.remove('active');
   state.reloading = false; state.waveSpawning = false;
@@ -5101,6 +5410,10 @@ function loop() {
 
   if (state.running && !state.gameOver && !gamePaused) {
     updatePlayer(dt);
+    // Auto-fire for SMG (hold to shoot)
+    if (currentWeapon.auto && state.mouseButtons[0] && !state.reloading && !state.gameOver) {
+      shoot();
+    }
     updateRecoil(dt);
     updateHitmarker(dt);
     updateGunAnim(dt);
