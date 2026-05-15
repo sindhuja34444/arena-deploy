@@ -1022,7 +1022,7 @@ const playerName = localStorage.getItem('arenaPlayerName') || 'Player';
 // ── Custom Keybinds (loaded from localStorage) ───────────────────────────
 const _defaultBinds = {
   moveForward:'KeyW', moveBack:'KeyS', moveLeft:'KeyA', moveRight:'KeyD',
-  jump:'Space', sprint:'ShiftLeft', reload:'KeyR',
+  jump:'Space', sprint:'ShiftLeft', reload:'KeyR', slide:'KeyX',
   shoot:'Mouse0', ads:'Mouse2',
   weapon1:'Digit1', weapon2:'Digit2', ability:'KeyF', heal:'KeyQ', pickup:'KeyE'
 };
@@ -4933,12 +4933,94 @@ function getGroundY(px, pz) {
 const _fwd = new THREE.Vector3();
 const _right = new THREE.Vector3();
 
+// ── Slide / Crouch mechanic ──────────────────────────────────────────────
+const CROUCH_HEIGHT = 1.0;       // camera height when crouching
+const SLIDE_DURATION = 0.65;     // seconds
+const SLIDE_SPEED = 12;          // initial slide speed
+const SLIDE_FRICTION = 16;       // deceleration during slide
+let isCrouching = false;
+let isSliding = false;
+let slideTimer = 0;
+let slideVelX = 0;
+let slideVelZ = 0;
+let slideCooldown = 0;
+
+function startSlide() {
+  if (isSliding || slideCooldown > 0 || !state.onGround) return;
+  isSliding = true;
+  slideTimer = SLIDE_DURATION;
+  const dir = _fwd.clone();
+  slideVelX = dir.x * SLIDE_SPEED;
+  slideVelZ = dir.z * SLIDE_SPEED;
+  camera.position.y -= (PLAYER_HEIGHT - CROUCH_HEIGHT);
+  slideCooldown = 0.4;
+}
+
+function startCrouch() {
+  if (isCrouching) return;
+  isCrouching = true;
+  camera.position.y -= (PLAYER_HEIGHT - CROUCH_HEIGHT);
+}
+
+function stopCrouch() {
+  if (!isCrouching) return;
+  isCrouching = false;
+  camera.position.y += (PLAYER_HEIGHT - CROUCH_HEIGHT);
+}
+
+function updateSlide(dt) {
+  if (slideCooldown > 0) slideCooldown -= dt;
+
+  if (isSliding) {
+    slideTimer -= dt;
+    const friction = SLIDE_FRICTION * dt;
+    const speed = Math.sqrt(slideVelX*slideVelX + slideVelZ*slideVelZ);
+    if (speed > friction) {
+      slideVelX -= (slideVelX / speed) * friction;
+      slideVelZ -= (slideVelZ / speed) * friction;
+    } else {
+      slideVelX = 0;
+      slideVelZ = 0;
+    }
+
+    const nx = camera.position.x + slideVelX * dt;
+    const nz = camera.position.z + slideVelZ * dt;
+    if (!playerCollides(nx, camera.position.z)) camera.position.x = nx;
+    if (!playerCollides(camera.position.x, nz)) camera.position.z = nz;
+
+    if (slideTimer <= 0) {
+      isSliding = false;
+      if (state.keys[KB.slide]) {
+        isCrouching = true;
+      } else {
+        camera.position.y += (PLAYER_HEIGHT - CROUCH_HEIGHT);
+      }
+    }
+  }
+}
+
 function updatePlayer(dt) {
   if (!state.running || state.gameOver) return;
 
+  // Handle slide/crouch input
+  if (state.keys[KB.slide] && !isCrouching && !isSliding) {
+    const moving = state.keys[KB.moveForward] || state.keys[KB.moveBack] ||
+                   state.keys[KB.moveLeft] || state.keys[KB.moveRight];
+    if (moving) {
+      startSlide();
+    } else {
+      startCrouch();
+    }
+  } else if (!state.keys[KB.slide] && isCrouching && !isSliding) {
+    stopCrouch();
+  }
+
+  updateSlide(dt);
+
   const sprint = state.keys[KB.sprint] || state.keys['ShiftRight'];
   const isADS = state.mouseButtons[2];
-  const speed = SETTINGS.PLAYER_SPEED * (sprint ? SETTINGS.SPRINT_MULT : 1.0) * (isADS ? 0.5 : 1.0);
+  const crouchMult = (isCrouching || isSliding) ? 0.45 : 1.0;
+  const speed = SETTINGS.PLAYER_SPEED * (sprint ? SETTINGS.SPRINT_MULT : 1.0) * (isADS ? 0.5 : 1.0) * crouchMult;
 
   _fwd.set(Math.sin(state.yaw), 0, Math.cos(state.yaw)).negate();
   _right.set(Math.cos(state.yaw), 0, -Math.sin(state.yaw)).negate();
@@ -4989,13 +5071,14 @@ function updatePlayer(dt) {
 
   // Find ground surface (floor or top of any collidable)
   const groundY = getGroundY(camera.position.x, camera.position.z);
+  const effectiveGroundY = (isCrouching || isSliding) ? groundY - (PLAYER_HEIGHT - CROUCH_HEIGHT) : groundY;
 
-  if (camera.position.y <= groundY) {
-    camera.position.y = groundY;
+  if (camera.position.y <= effectiveGroundY) {
+    camera.position.y = effectiveGroundY;
     if (!state.onGround && state.velocity.y < -3) Audio.land();
     state.velocity.y = 0;
     state.onGround = true;
-  } else if (camera.position.y > groundY + 0.05) {
+  } else if (camera.position.y > effectiveGroundY + 0.05) {
     // Only mark as airborne if clearly above ground
     state.onGround = false;
   }
@@ -5007,6 +5090,7 @@ function updatePlayer(dt) {
   camera.rotation.order = 'YXZ';
   camera.rotation.y = state.yaw   + shakeX;
   camera.rotation.x = state.pitch + recoilPitch + shakeY;
+  camera.rotation.z = isSliding ? -0.08 : 0;
 
   if (state.reloading) {
     state.reloadTimer += dt * 1000;

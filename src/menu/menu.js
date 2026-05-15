@@ -238,7 +238,7 @@ initLoadoutUI();
 // ── Keybinds ───────────────────────────────────────────
 const DEFAULT_BINDS = {
   moveForward:'KeyW', moveBack:'KeyS', moveLeft:'KeyA', moveRight:'KeyD',
-  jump:'Space', sprint:'ShiftLeft', reload:'KeyR',
+  jump:'Space', sprint:'ShiftLeft', reload:'KeyR', slide:'KeyX',
   shoot:'Mouse0', ads:'Mouse2',
   weapon1:'Digit1', weapon2:'Digit2',
   ability:'KeyF', heal:'KeyQ', pickup:'KeyE',
@@ -250,6 +250,7 @@ const BIND_LABELS = {
   moveRight:'Move Right',
   jump:'Jump',
   sprint:'Sprint',
+  slide:'Slide / Crouch',
   shoot:'Shoot',
   ads:'Aim Down Sights',
   reload:'Reload',
@@ -281,7 +282,7 @@ let currentBinds = loadBinds();
 const kbGrid = document.getElementById('kb-grid');
 
 const KB_CATEGORIES = [
-  { label: 'Movement', actions: ['moveForward','moveBack','moveLeft','moveRight','jump','sprint'] },
+  { label: 'Movement', actions: ['moveForward','moveBack','moveLeft','moveRight','jump','sprint','slide'] },
   { label: 'Combat', actions: ['shoot','ads','reload','weapon1','weapon2'] },
   { label: 'Abilities', actions: ['ability','heal','pickup'] },
 ];
