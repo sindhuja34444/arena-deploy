@@ -101,6 +101,16 @@ function escAction() {
 document.getElementById('esc-cancel').onclick  = () => escOverlay.classList.remove('show');
 document.getElementById('esc-confirm').onclick = () => location.href = '/';
 
+// Capture mouse buttons for keybind rebinding
+document.addEventListener('mousedown', (e) => {
+  if (!listeningKb) return;
+  if (!document.getElementById('kb-overlay').classList.contains('show')) return;
+  e.preventDefault();
+  e.stopPropagation();
+  currentBinds[listeningKb] = 'Mouse' + e.button;
+  listeningKb = null; renderKb(); saveLocalBinds();
+}, true);
+
 document.addEventListener('keydown', (e) => {
   if (listeningKb && e.code !== 'Escape') {
     e.preventDefault();
@@ -229,15 +239,25 @@ initLoadoutUI();
 const DEFAULT_BINDS = {
   moveForward:'KeyW', moveBack:'KeyS', moveLeft:'KeyA', moveRight:'KeyD',
   jump:'Space', sprint:'ShiftLeft', reload:'KeyR',
+  shoot:'Mouse0', ads:'Mouse2',
   weapon1:'Digit1', weapon2:'Digit2',
   ability:'KeyF', heal:'KeyQ', pickup:'KeyE',
 };
 const BIND_LABELS = {
-  moveForward:'Move Forward', moveBack:'Move Back',
-  moveLeft:'Move Left', moveRight:'Move Right',
-  jump:'Jump', sprint:'Sprint', reload:'Reload',
-  weapon1:'Weapon 1 — Rifle', weapon2:'Weapon 2 — Shotgun',
-  ability:'Armour Ability', heal:'Heal (PVP)', pickup:'Pick Up Shield',
+  moveForward:'Move Forward',
+  moveBack:'Move Back',
+  moveLeft:'Move Left',
+  moveRight:'Move Right',
+  jump:'Jump',
+  sprint:'Sprint',
+  shoot:'Shoot',
+  ads:'Aim Down Sights',
+  reload:'Reload',
+  weapon1:'Primary Weapon',
+  weapon2:'Secondary Weapon',
+  ability:'Armour Ability',
+  heal:'Heal',
+  pickup:'Interact / Pick Up',
 };
 function loadBinds() {
   try { return { ...DEFAULT_BINDS, ...JSON.parse(localStorage.getItem('arenaKeybinds') || '{}') }; }
@@ -246,6 +266,11 @@ function loadBinds() {
 function saveLocalBinds() { localStorage.setItem('arenaKeybinds', JSON.stringify(currentBinds)); }
 function codeLabel(c) {
   if (!c) return '?';
+  if (c === 'Mouse0') return 'MOUSE 1';
+  if (c === 'Mouse1') return 'MOUSE 3';
+  if (c === 'Mouse2') return 'MOUSE 2';
+  if (c === 'Mouse3') return 'MOUSE 4';
+  if (c === 'Mouse4') return 'MOUSE 5';
   return c.replace('Key','').replace('Digit','')
     .replace('ShiftLeft','L-SHIFT').replace('ShiftRight','R-SHIFT')
     .replace('Space','SPACE').replace('ControlLeft','L-CTRL').replace('ControlRight','R-CTRL')
@@ -254,20 +279,39 @@ function codeLabel(c) {
 }
 let currentBinds = loadBinds();
 const kbGrid = document.getElementById('kb-grid');
+
+const KB_CATEGORIES = [
+  { label: 'Movement', actions: ['moveForward','moveBack','moveLeft','moveRight','jump','sprint'] },
+  { label: 'Combat', actions: ['shoot','ads','reload','weapon1','weapon2'] },
+  { label: 'Abilities', actions: ['ability','heal','pickup'] },
+];
+
 function renderKb() {
   kbGrid.innerHTML = '';
-  for (const [action, code] of Object.entries(currentBinds)) {
-    const lbl = document.createElement('div');
-    lbl.className = 'halo-kb-action';
-    lbl.textContent = BIND_LABELS[action] || action;
-    kbGrid.appendChild(lbl);
-    const box = document.createElement('button');
-    box.type = 'button';
-    box.className = 'halo-kb-key';
-    if (listeningKb === action) { box.classList.add('listening'); box.textContent = '...'; }
-    else                          box.textContent = codeLabel(code);
-    box.onclick = () => { listeningKb = action; renderKb(); };
-    kbGrid.appendChild(box);
+  for (const cat of KB_CATEGORIES) {
+    const header = document.createElement('div');
+    header.className = 'halo-kb-category';
+    header.textContent = cat.label;
+    kbGrid.appendChild(header);
+    const spacer = document.createElement('div');
+    spacer.className = 'halo-kb-category-spacer';
+    kbGrid.appendChild(spacer);
+
+    for (const action of cat.actions) {
+      const code = currentBinds[action];
+      if (code === undefined) continue;
+      const lbl = document.createElement('div');
+      lbl.className = 'halo-kb-action';
+      lbl.textContent = BIND_LABELS[action] || action;
+      kbGrid.appendChild(lbl);
+      const box = document.createElement('button');
+      box.type = 'button';
+      box.className = 'halo-kb-key';
+      if (listeningKb === action) { box.classList.add('listening'); box.textContent = 'PRESS KEY / CLICK...'; }
+      else box.textContent = codeLabel(code);
+      box.onclick = () => { listeningKb = action; renderKb(); };
+      kbGrid.appendChild(box);
+    }
   }
 }
 renderKb();

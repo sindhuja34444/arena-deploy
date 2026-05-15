@@ -988,6 +988,7 @@ const playerName = localStorage.getItem('arenaPlayerName') || 'Player';
 const _defaultBinds = {
   moveForward:'KeyW', moveBack:'KeyS', moveLeft:'KeyA', moveRight:'KeyD',
   jump:'Space', sprint:'ShiftLeft', reload:'KeyR',
+  shoot:'Mouse0', ads:'Mouse2',
   weapon1:'Digit1', weapon2:'Digit2', ability:'KeyF', heal:'KeyQ', pickup:'KeyE'
 };
 const KB = (() => {
@@ -5911,7 +5912,8 @@ document.addEventListener('keyup', e => { state.keys[e.code] = false; });
 
 document.addEventListener('mousedown', e => {
   if (!state.running) return;
-  if (e.button === 0) {
+  const btn = 'Mouse' + e.button;
+  if (btn === KB.shoot) {
     if (document.pointerLockElement !== canvas) {
       canvas.requestPointerLock();
       return;
@@ -5919,12 +5921,27 @@ document.addEventListener('mousedown', e => {
     state.mouseButtons[0] = true;
     shoot();
   }
-  if (e.button === 2) state.mouseButtons[2] = true;
+  if (btn === KB.ads) state.mouseButtons[2] = true;
 });
 
 document.addEventListener('mouseup', e => {
-  if (e.button === 0) state.mouseButtons[0] = false;
-  if (e.button === 2) state.mouseButtons[2] = false;
+  const btn = 'Mouse' + e.button;
+  if (btn === KB.shoot) state.mouseButtons[0] = false;
+  if (btn === KB.ads) state.mouseButtons[2] = false;
+});
+
+// Handle shoot/ads if bound to keyboard keys
+document.addEventListener('keydown', e => {
+  if (e.code === KB.shoot && state.running) {
+    if (document.pointerLockElement !== canvas) return;
+    state.mouseButtons[0] = true;
+    shoot();
+  }
+  if (e.code === KB.ads && state.running) state.mouseButtons[2] = true;
+});
+document.addEventListener('keyup', e => {
+  if (e.code === KB.shoot) state.mouseButtons[0] = false;
+  if (e.code === KB.ads) state.mouseButtons[2] = false;
 });
 
 canvas.addEventListener('contextmenu', e => e.preventDefault());

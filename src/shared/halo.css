@@ -428,22 +428,44 @@ input { font-family: inherit; }
 .halo-kb-grid {
   display: grid; grid-template-columns: 1fr 120px;
   gap: 6px 16px; margin-bottom: 20px;
-  max-height: 320px; overflow-y: auto;
+  max-height: 380px; overflow-y: auto;
+  padding-right: 4px;
 }
 .halo-kb-action {
   font-size: 12px; letter-spacing: 2px; text-transform: uppercase;
-  color: var(--h-fg-dim); padding: 10px 0; align-self: center;
+  color: var(--h-fg); padding: 10px 0; align-self: center;
+  font-weight: 500;
 }
 .halo-kb-key {
-  background: var(--h-bg-solid); border: 1px solid var(--h-line);
+  background: rgba(20,28,38,0.9); border: 1px solid var(--h-accent-2);
   padding: 10px; text-align: center;
   font-family: var(--h-mono); font-size: 12px; font-weight: bold;
   letter-spacing: 1.5px;
+  color: var(--h-accent);
+  transition: border-color 0.15s, background 0.15s, color 0.15s, transform 0.1s;
 }
-.halo-kb-key:hover { border-color: var(--h-fg); }
+.halo-kb-key:hover {
+  border-color: var(--h-fg); color: var(--h-fg);
+  background: rgba(126,182,225,0.08);
+  transform: scale(1.02);
+}
 .halo-kb-key.listening {
-  border-color: var(--h-accent); color: var(--h-accent);
+  border-color: #ffcc00; color: #ffcc00;
+  background: rgba(255,204,0,0.08);
   animation: dotPulse 1.2s ease-in-out infinite;
+}
+.halo-kb-category {
+  grid-column: 1;
+  font-size: 9px; letter-spacing: 4px; text-transform: uppercase;
+  color: var(--h-accent); font-weight: 700;
+  padding: 12px 0 4px; border-bottom: 1px solid var(--h-line-soft);
+  margin-top: 4px;
+}
+.halo-kb-category-spacer {
+  grid-column: 2;
+  border-bottom: 1px solid var(--h-line-soft);
+  margin-top: 4px;
+}
 }
 
 /* Toast */
