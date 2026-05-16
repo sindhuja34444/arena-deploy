@@ -997,6 +997,7 @@
   window.__arenaApi = api;
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/GLTFLoader.js"></script>
 <script>
 // ─────────────────────────────────────────────
 //  SOLO MODE — no server, no PVP
@@ -3120,90 +3121,28 @@ function switchWeapon(weaponKey) {
 //  VIEWMODEL GUN
 // ─────────────────────────────────────────────
 const gunGroup = new THREE.Group();
-
-const gunMetal   = new THREE.MeshLambertMaterial({ color: 0x4a4a4a });
-const darkMetal  = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
-const accentMetal= new THREE.MeshLambertMaterial({ color: 0xcc1111 });
-const gripRubber = new THREE.MeshLambertMaterial({ color: 0x111111 });
-
-const lower = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.12, 0.48), gunMetal);
-lower.position.set(0, -0.01, -0.02);
-gunGroup.add(lower);
-
-const upper = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.05, 0.50), darkMetal);
-upper.position.set(0, 0.085, -0.03);
-gunGroup.add(upper);
-
-const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.42, 12), darkMetal);
-barrel.rotation.x = Math.PI / 2;
-barrel.position.set(0, 0.06, -0.35);
-gunGroup.add(barrel);
-
-const shroud = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.28), accentMetal);
-shroud.position.set(0, 0.04, -0.22);
-gunGroup.add(shroud);
-
-const brake = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.028, 0.05, 8), accentMetal);
-brake.rotation.x = Math.PI / 2;
-brake.position.set(0, 0.06, -0.58);
-gunGroup.add(brake);
-
-const grip = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.18, 0.10), gripRubber);
-grip.position.set(0, -0.14, 0.08);
-grip.rotation.x = 0.25;
-gunGroup.add(grip);
-
-const tg = new THREE.Mesh(new THREE.TorusGeometry(0.04, 0.008, 8, 16, Math.PI), darkMetal);
-tg.rotation.z = Math.PI;
-tg.position.set(0, -0.06, 0.02);
-gunGroup.add(tg);
-
-const trigger = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.03, 0.02), accentMetal);
-trigger.position.set(0, -0.055, 0.01);
-gunGroup.add(trigger);
-
-const mag = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.16, 0.08), darkMetal);
-mag.position.set(0, -0.18, 0.03);
-gunGroup.add(mag);
-
-const magBase = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.02, 0.09), accentMetal);
-magBase.position.set(0, -0.27, 0.03);
-gunGroup.add(magBase);
-
-const rail = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.015, 0.38), accentMetal);
-rail.position.set(0, 0.115, -0.08);
-gunGroup.add(rail);
-
-const sightR = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.015), darkMetal);
-sightR.position.set(0, 0.13, 0.08);
-gunGroup.add(sightR);
-
-[-0.015, 0.015].forEach(x => {
-  const post = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.025, 0.008), accentMetal);
-  post.position.set(x, 0.025, 0);
-  sightR.add(post);
-});
-
-const sightF = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.04, 0.01), accentMetal);
-sightF.position.set(0, 0.13, -0.42);
-gunGroup.add(sightF);
-
-const port = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.03, 0.08), new THREE.MeshBasicMaterial({ color: 0x000000 }));
-port.position.set(0.042, 0.085, 0.05);
-gunGroup.add(port);
-
-const stock = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.22, 8), darkMetal);
-stock.rotation.z = Math.PI / 2;
-stock.position.set(0, 0.01, 0.32);
-gunGroup.add(stock);
-
-const cheek = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.03, 0.12), gripRubber);
-cheek.position.set(0, 0.04, 0.30);
-gunGroup.add(cheek);
-
-gunGroup.position.set(0.22, -0.22, -0.50);
+gunGroup.position.set(0.22, -0.28, -0.35);
 camera.add(gunGroup);
 scene.add(camera);
+
+// Load GLTF rifle model
+const _gltfLoader = new THREE.GLTFLoader();
+_gltfLoader.load('/assets/rifle.gltf', (gltf) => {
+  const model = gltf.scene;
+  model.scale.set(0.35, 0.35, 0.35);
+  model.rotation.set(-0.15, Math.PI / 2, 0);
+  // Brighten the model materials
+  model.traverse((child) => {
+    if (child.isMesh && child.material) {
+      child.material = new THREE.MeshBasicMaterial({
+        color: child.material.color ? child.material.color : new THREE.Color(0x888888),
+      });
+    }
+  });
+  gunGroup.add(model);
+  console.log('Rifle GLTF loaded successfully', model);
+}, (progress) => { console.log('Rifle loading...', progress); },
+(err) => { console.warn('Rifle GLTF load error:', err); });
 
 // ─────────────────────────────────────────────
 //  HAND VIEWMODELS
@@ -3244,8 +3183,8 @@ function makeHand(parent, gripX, gripY, gripZ, rotX, rotY, rotZ, isFront) {
   return handGroup;
 }
 
-const rifleRightHand = makeHand(gunGroup, 0.0, -0.14, 0.10, -0.25, 0, 0, false);
-const rifleLeftHand  = makeHand(gunGroup, 0.0, -0.02, -0.22, 0.15, 0, 0, true);
+const rifleRightHand = null;
+const rifleLeftHand  = null;
 
 let sgRightHand, sgLeftHand;
 
@@ -3268,7 +3207,7 @@ function updateHandAnim(dt) {
   const recoilZ = recoilAnim * 0.04;
   const recoilRX = recoilAnim * 0.12;
 
-  if (gunGroup.visible) {
+  if (gunGroup.visible && rifleRightHand && rifleLeftHand) {
     rifleRightHand.position.set(0.0, -0.14 + bobY - recoilZ * 0.5, 0.10 + recoilZ);
     rifleRightHand.rotation.x = -0.25 - recoilRX;
     rifleLeftHand.position.set(bobX, -0.02 + bobY * 0.5, -0.22 + recoilZ * 0.3);
@@ -3366,63 +3305,37 @@ const smgGroup = new THREE.Group();
 
 const smgBody   = new THREE.MeshLambertMaterial({ color: 0x2a2a3a });
 const smgDark   = new THREE.MeshLambertMaterial({ color: 0x111118 });
-const smgAccent = new THREE.MeshLambertMaterial({ color: 0x2266cc });
 const smgGlow   = new THREE.MeshBasicMaterial({ color: 0x44aaff });
 
-// Compact receiver
 const smgReceiver = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.09, 0.32), smgBody);
-smgReceiver.position.set(0, 0, 0);
 smgGroup.add(smgReceiver);
-
-// Top rail
 const smgRail = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.015, 0.28), smgDark);
 smgRail.position.set(0, 0.052, -0.02);
 smgGroup.add(smgRail);
-
-// Barrel (shorter than rifle)
 const smgBarrel = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.22, 10), smgDark);
-smgBarrel.rotation.x = Math.PI / 2;
-smgBarrel.position.set(0, 0.02, -0.26);
+smgBarrel.rotation.x = Math.PI / 2; smgBarrel.position.set(0, 0.02, -0.26);
 smgGroup.add(smgBarrel);
-
-// Suppressor/muzzle
 const smgMuzzle = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.020, 0.06, 8), smgBody);
-smgMuzzle.rotation.x = Math.PI / 2;
-smgMuzzle.position.set(0, 0.02, -0.38);
+smgMuzzle.rotation.x = Math.PI / 2; smgMuzzle.position.set(0, 0.02, -0.38);
 smgGroup.add(smgMuzzle);
-
-// Foregrip
 const smgForegrip = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.08, 0.04), smgDark);
 smgForegrip.position.set(0, -0.07, -0.12);
 smgGroup.add(smgForegrip);
-
-// Magazine (curved)
 const smgMag = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.12, 0.04), smgDark);
-smgMag.position.set(0, -0.10, 0.04);
-smgMag.rotation.x = 0.1;
+smgMag.position.set(0, -0.10, 0.04); smgMag.rotation.x = 0.1;
 smgGroup.add(smgMag);
-
-// Pistol grip
-const smgGrip = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.09, 0.035), smgDark);
-smgGrip.position.set(0, -0.08, 0.10);
-smgGrip.rotation.x = -0.2;
-smgGroup.add(smgGrip);
-
-// Stock (folded/compact)
+const smgGripP = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.09, 0.035), smgDark);
+smgGripP.position.set(0, -0.08, 0.10); smgGripP.rotation.x = -0.2;
+smgGroup.add(smgGripP);
 const smgStock = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.04, 0.12), smgBody);
 smgStock.position.set(0, 0.01, 0.22);
 smgGroup.add(smgStock);
-
-// Blue accent glow strip
 const smgStrip = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.008, 0.20), smgGlow);
 smgStrip.position.set(0.035, 0.0, -0.02);
 smgGroup.add(smgStrip);
-
-// Side accent
 const smgStrip2 = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.008, 0.20), smgGlow);
 smgStrip2.position.set(-0.035, 0.0, -0.02);
 smgGroup.add(smgStrip2);
-
 smgGroup.position.set(0.22, -0.22, -0.44);
 smgGroup.visible = false;
 camera.add(smgGroup);
@@ -3519,9 +3432,9 @@ function getMuzzleWorldPos() {
 
 let gunKickTimer = 0;
 const GUN_KICK_DUR = 0.12;
-const gunRestPos = new THREE.Vector3(0.22, -0.22, -0.50);
+const gunRestPos = new THREE.Vector3(0.22, -0.28, -0.35);
 const gunRestRot = new THREE.Euler(0, 0, 0);
-const gunKickPos = new THREE.Vector3(0.22, -0.18, -0.42);
+const gunKickPos = new THREE.Vector3(0.22, -0.24, -0.28);
 const gunADSPos  = new THREE.Vector3(0.05, -0.28, -0.50);
 const gunADSRot  = new THREE.Euler(0, 0, 0);
 let adsProgress = 0;
