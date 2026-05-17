@@ -521,6 +521,10 @@
       <span class="halo-item-label">Capture Zones</span>
       <span class="halo-item-meta">Soon</span>
     </button>
+    <button class="halo-item" data-action="mode-tdm">
+      <span class="halo-item-label">Team Deathmatch</span>
+      <span class="halo-item-meta">2v2 – 4v4</span>
+    </button>
     <p class="tagline" id="play-tagline">Solo training. No login pressure. Survive the waves.</p>
   </div>
 
@@ -724,6 +728,35 @@
       <button class="halo-btn" id="esc-cancel">Stay</button>
       <div style="flex:1"></div>
       <button class="halo-btn primary" id="esc-confirm">Leave</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── TDM TEAM SELECT OVERLAY ────────────────────────── -->
+<div class="halo-overlay" id="tdm-overlay">
+  <div class="halo-modal" style="max-width: 480px;">
+    <div class="halo-modal-eyebrow">Team Deathmatch</div>
+    <h2 class="halo-modal-title">Select Team Size</h2>
+    <p class="halo-modal-text">Choose your team format. Empty slots will be filled with AI.</p>
+    <div style="display:flex;gap:10px;justify-content:center;margin:20px 0;">
+      <button class="halo-btn tdm-size-btn" data-size="2" style="padding:10px 20px;font-size:14px;letter-spacing:2px;">2 v 2</button>
+      <button class="halo-btn tdm-size-btn active" data-size="3" style="padding:10px 20px;font-size:14px;letter-spacing:2px;border-color:var(--h-accent);color:var(--h-accent);box-shadow:0 0 10px var(--h-accent-glow);">3 v 3</button>
+      <button class="halo-btn tdm-size-btn" data-size="4" style="padding:10px 20px;font-size:14px;letter-spacing:2px;">4 v 4</button>
+    </div>
+    <div style="margin:16px 0;">
+      <label style="font-size:10px;letter-spacing:2px;color:rgba(255,255,255,0.5);text-transform:uppercase;display:block;margin-bottom:6px;">Room Code (4 digits — share with opponents)</label>
+      <div style="display:flex;gap:8px;justify-content:center;">
+        <input type="text" maxlength="1" class="tdm-code-input" data-idx="0" placeholder="·" style="width:50px;height:60px;background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.2);border-radius:4px;color:#fff;font-family:'Courier New',monospace;font-size:28px;font-weight:bold;text-align:center;outline:none;" />
+        <input type="text" maxlength="1" class="tdm-code-input" data-idx="1" placeholder="·" style="width:50px;height:60px;background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.2);border-radius:4px;color:#fff;font-family:'Courier New',monospace;font-size:28px;font-weight:bold;text-align:center;outline:none;" />
+        <input type="text" maxlength="1" class="tdm-code-input" data-idx="2" placeholder="·" style="width:50px;height:60px;background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.2);border-radius:4px;color:#fff;font-family:'Courier New',monospace;font-size:28px;font-weight:bold;text-align:center;outline:none;" />
+        <input type="text" maxlength="1" class="tdm-code-input" data-idx="3" placeholder="·" style="width:50px;height:60px;background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.2);border-radius:4px;color:#fff;font-family:'Courier New',monospace;font-size:28px;font-weight:bold;text-align:center;outline:none;" />
+      </div>
+      <button id="tdm-random-code" style="margin-top:8px;background:transparent;border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.6);font-family:'Courier New',monospace;font-size:10px;letter-spacing:2px;padding:4px 12px;cursor:pointer;border-radius:3px;">↻ RANDOM CODE</button>
+    </div>
+    <div class="halo-modal-actions" style="margin-top:20px;">
+      <button class="halo-btn" id="tdm-cancel">Cancel</button>
+      <div style="flex:1"></div>
+      <button class="halo-btn primary" id="tdm-start">Start Match</button>
     </div>
   </div>
 </div>

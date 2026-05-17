@@ -1,16 +1,15 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ARENA FPS</title>
+<title>ARENA FPS — Team Deathmatch</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: #000; overflow: hidden; font-family: 'Courier New', monospace; }
   #canvas { display: block; width: 100vw; height: 100vh; }
+
   #ui { position: fixed; inset: 0; pointer-events: none; }
 
   /* Crosshair — hip fire (4 separated bars + center dot) */
@@ -54,7 +53,7 @@
     box-shadow: 0 0 2px #000;
   }
 
-  /* Shotgun crosshair — four corner brackets with center dot */
+  /* Shotgun crosshair — circle with center dot */
   #crosshair-sg {
     position: absolute; top: 50%; left: 50%;
     transform: translate(-50%, -50%);
@@ -313,25 +312,6 @@
     font-size: 8px; letter-spacing: 1px; color: rgba(255,255,255,0.5);
   }
 
-  /* Heal slot */
-  #heal-slot {
-    width: 60px; height: 60px;
-    background: rgba(0,0,0,0.6);
-    border: 1px solid rgba(0,255,100,0.4);
-    border-radius: 6px;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    position: relative; gap: 2px;
-    transition: border-color 0.2s, box-shadow 0.2s, opacity 0.2s;
-    box-shadow: 0 0 8px rgba(0,255,100,0.2);
-  }
-  #heal-slot .inv-key { font-size: 9px; position: absolute; top: -8px; left: 50%;
-    transform: translateX(-50%); background: rgba(0,0,0,0.7);
-    border: 1px solid rgba(255,255,255,0.2); border-radius: 3px;
-    padding: 1px 5px; color: rgba(255,255,255,0.5); letter-spacing: 1px; }
-  #heal-icon { font-size: 20px; line-height: 1; }
-  #heal-count { font-size: 10px; letter-spacing: 2px; color: #44ff88; font-weight: bold; }
-  #heal-slot.empty { opacity: 0.3; border-color: rgba(255,255,255,0.1); box-shadow: none; }
-
   /* Armour active screen tint */
   #armour-overlay {
     position: absolute; inset: 0;
@@ -511,7 +491,6 @@
     70%  { opacity: 1; transform: translateX(0); }
     100% { opacity: 0; transform: translateX(-15px) scale(0.95); }
   }
-
   /* Screens */
   .screen {
     position: fixed; inset: 0;
@@ -686,6 +665,54 @@
   }
   @keyframes dmgFade { 0%{opacity:1;transform:translate(-50%,-50%) scale(1)} 100%{opacity:0;transform:translate(-50%,-50%) scale(1.4)} }
 
+  /* Capture zone progress bar */
+  #capture-progress-wrap {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, calc(-50% + 80px));
+    display: none; flex-direction: column; align-items: center; gap: 6px;
+    background: rgba(0,10,40,0.82); border: 1px solid rgba(68,170,255,0.7);
+    border-radius: 5px; padding: 8px 20px; pointer-events: none;
+    min-width: 220px;
+  }
+  #capture-progress-label {
+    font-size: 11px; letter-spacing: 3px; color: #88ddff; text-transform: uppercase;
+    white-space: nowrap;
+  }
+  #capture-progress-bar-bg {
+    width: 200px; height: 8px; background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(68,170,255,0.4); border-radius: 4px; overflow: hidden;
+  }
+  #capture-progress-bar-fill {
+    height: 100%; width: 0%; background: linear-gradient(90deg, #0044ff, #44aaff);
+    border-radius: 4px; transition: width 0.1s linear;
+  }
+
+  /* Zone status indicators top-right */
+  #zone-status-wrap {
+    position: absolute; top: 16px; right: 200px;
+    display: flex; gap: 6px; align-items: center;
+  }
+  .zone-status-sq {
+    width: 18px; height: 18px; border-radius: 3px;
+    background: #222; border: 1px solid rgba(255,255,255,0.25);
+    transition: border-color 0.4s, box-shadow 0.4s;
+    position: relative; overflow: hidden;
+  }
+  .zone-sq-fill {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 0%;
+    background: rgba(68,170,255,0.6);
+    transition: height 0.3s linear;
+  }
+  .zone-status-sq.captured {
+    background: #0033cc; border-color: #44aaff;
+    box-shadow: 0 0 7px rgba(68,170,255,0.8);
+  }
+  .zone-status-sq.captured .zone-sq-fill {
+    height: 100%;
+    background: rgba(100,200,255,0.3);
+  }
+
   /* Click-to-look overlay shown when pointer lock is lost */
   #lock-overlay {
     position: fixed; inset: 0; z-index: 50;
@@ -767,6 +794,7 @@
     <div class="dot"></div>
   </div>
   <div id="ads-vignette"></div>
+  <!-- Sniper scope overlay -->
   <div id="sniper-scope" style="display:none;">
     <div class="scope-ring"></div>
     <div class="scope-cross-h"></div>
@@ -805,8 +833,15 @@
   </div>
 
   <div id="top-bar">
-    <div id="wave-info">WAVE <span id="wave-num">1</span></div>
-    <div id="enemies-left">ENEMIES: <span id="enemies-count">0</span></div>
+    <div style="text-align:center;">
+      <div style="font-size:28px;font-weight:bold;color:#44aaff;" id="blue-score-num">0</div>
+      <div style="font-size:8px;letter-spacing:2px;color:rgba(255,255,255,0.4);">BLUE</div>
+    </div>
+    <div style="font-size:14px;color:rgba(255,255,255,0.3);letter-spacing:4px;">—</div>
+    <div style="text-align:center;">
+      <div style="font-size:28px;font-weight:bold;color:#ff4444;" id="red-score-num">0</div>
+      <div style="font-size:8px;letter-spacing:2px;color:rgba(255,255,255,0.4);">RED</div>
+    </div>
   </div>
 
   <div id="streak-announce">
@@ -899,12 +934,6 @@
         </svg>
       </div>
     </div>
-    <!-- Heal slot -->
-    <div id="heal-slot">
-      <div class="inv-key" id="hud-key-heal">Q</div>
-      <div id="heal-icon">💊</div>
-      <div id="heal-count">2</div>
-    </div>
   </div>
 
   <div id="armour-overlay"></div>
@@ -915,7 +944,21 @@
     <span class="pk-text">🛡 Pick up Shield (+20)</span>
   </div>
 
-  <!-- Capture zone elements removed for PVP mode -->
+  <!-- Capture zone progress bar (hidden in TDM) -->
+  <div id="capture-progress-wrap" style="display:none;">
+    <div id="capture-progress-label">CAPTURING... 0%</div>
+    <div id="capture-progress-bar-bg">
+      <div id="capture-progress-bar-fill"></div>
+    </div>
+  </div>
+
+  <!-- Zone status indicators (hidden in TDM) -->
+  <div id="zone-status-wrap" style="display:none;">
+    <div class="zone-status-sq" id="zone-sq-0"><div class="zone-sq-fill" id="zone-fill-0"></div></div>
+    <div class="zone-status-sq" id="zone-sq-1"><div class="zone-sq-fill" id="zone-fill-1"></div></div>
+    <div class="zone-status-sq" id="zone-sq-2"><div class="zone-sq-fill" id="zone-fill-2"></div></div>
+    <div class="zone-status-sq" id="zone-sq-3"><div class="zone-sq-fill" id="zone-fill-3"></div></div>
+  </div>
 </div>
 
 <!-- Click-to-look overlay -->
@@ -931,12 +974,24 @@
   <button class="pause-btn danger" id="pause-leave-btn">✕ Leave Match</button>
 </div>
 
-<!-- Start Screen -->
-<!-- Game Over Screen -->
+<!-- Start Screen — TDM Lobby -->
+<div id="tdm-lobby" class="screen">
+  <h1 style="font-size:36px;letter-spacing:8px;">TEAM DEATHMATCH</h1>
+  <div class="subtitle" id="tdm-lobby-sub">Share this code with friends to join the same match</div>
+  <div style="font-size:36px;color:#44aaff;letter-spacing:8px;font-weight:bold;margin-bottom:4px;font-family:'Courier New',monospace;" id="tdm-code-display">----</div>
+  <div style="font-size:11px;color:rgba(255,255,255,0.4);letter-spacing:2px;margin-bottom:16px;" id="tdm-size-display">3 v 3</div>
+  <div style="font-size:12px;color:rgba(255,255,255,0.6);letter-spacing:2px;margin-bottom:24px;" id="tdm-players-display">1 / 6 players</div>
+  <button class="screen-btn" id="tdm-start-btn">START MATCH (AI FILLS EMPTY SLOTS)</button>
+  <button class="screen-btn" id="tdm-leave-btn" style="margin-top:12px;border-color:rgba(255,60,60,0.4);color:rgba(255,100,100,0.85);">LEAVE</button>
+</div>
+
+<!-- Game Over Screen — TDM -->
 <div id="gameover-screen" class="screen" style="display:none">
-  <div class="screen-title" style="font-size:52px;letter-spacing:8px;color:#ff3333;margin-bottom:8px">GAME OVER</div>
-  <div class="subtitle">YOU WERE ELIMINATED</div>
-  <div class="final-score">SCORE: <span id="final-score-num">0</span></div>
+  <div class="screen-title" id="tdm-result-title" style="font-size:52px;letter-spacing:8px;color:#ffcc00;margin-bottom:8px">VICTORY</div>
+  <div class="subtitle" id="gameover-subtitle">YOUR TEAM WINS</div>
+  <div class="final-score" style="font-size:18px;margin-bottom:24px;" id="tdm-final-score">Blue 25 — Red 18</div>
+  <button class="screen-btn" id="restart-btn">Play Again</button>
+</div>
   <div class="final-score" style="font-size:16px; margin-bottom:4px;">KILLS: <span id="final-kills-num" style="color:#ff6644">0</span></div>
   <div class="final-score" style="font-size:16px; margin-bottom:8px;">HIGH SCORE: <span id="final-highscore-num">0</span></div>
   <div id="new-highscore-msg" style="display:none; font-size:14px; letter-spacing:3px; color:#ffcc00; margin-bottom:24px;">🏆 NEW HIGH SCORE!</div>
@@ -949,8 +1004,7 @@
   import { api } from '../../convex/_generated/api.js';
   try {
     const c = await initClerk();
-    if (!c.user) { signIn({ redirectUrl: '/pvp/' }); }
-    else {
+    if (c.user) {
       const u = c.user;
       const username = u.username || u.firstName || u.primaryEmailAddress?.emailAddress.split('@')[0] || 'operator';
       window.__arenaAuth = { user: u, username, getToken };
@@ -961,29 +1015,331 @@
   window.__arenaConvex = getConvex();
   window.__arenaApi = api;
 </script>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/GLTFLoader.js"></script>
 <script>
+console.log('TDM script loading...');
 // ─────────────────────────────────────────────
-//  SOCKET.IO  — PVP NETWORKING
-//  Only connects when PVP mode is chosen.
-//  Solo players never touch the server.
+//  TDM MULTIPLAYER — Socket + Remote Players
 // ─────────────────────────────────────────────
+const playerName = localStorage.getItem('arenaPlayerName') || 'Player';
+const PLAYER_HEIGHT = 2.3;
 
-// PVP mode — always connect to server (Clerk JWT attached if present)
+const __tdmParams = new URLSearchParams(location.search);
+const TDM_ROOM_CODE = __tdmParams.get('code') || '';
+const TDM_TEAM_SIZE = parseInt(__tdmParams.get('size')) || 3;
+const TDM_KILL_TARGET = 25;
+let tdmBlueScore = 0, tdmRedScore = 0;
+const TDM_MY_TEAM = 'blue';
+
 const __serverUrl = "https://arena-fps-server.onrender.com";
-const __auth = window.__arenaAuth || null;
 const socket = io(__serverUrl, {
-  auth: async (cb) => {
-    let token = null;
-    try { token = __auth ? await __auth.getToken('socket') : null; } catch {}
-    cb({ token, username: __auth?.username || localStorage.getItem('arenaPlayerName') || 'Player' });
+  auth: (cb) => {
+    const name = localStorage.getItem('arenaPlayerName') || 'Player';
+    cb({ username: name });
   },
 });
-socket.on("connect", () => console.log("PVP connected:", socket.id));
+socket.on("connect", () => console.log("TDM connected:", socket.id));
 
-// ── Player Name ──────────────────────────────────────────────────────────
-const playerName = localStorage.getItem('arenaPlayerName') || 'Player';
+const remotePlayers = {};
+
+function buildRemotePlayerModel(id) {
+  const root = new THREE.Group();
+  const S = 1.25;
+
+  const bodyMat   = new THREE.MeshLambertMaterial({ color: 0x8b2020 });
+  const armorMat  = new THREE.MeshLambertMaterial({ color: 0x5c1010 });
+  const darkMat   = new THREE.MeshLambertMaterial({ color: 0x1a0808 });
+  const skinMat   = new THREE.MeshLambertMaterial({ color: 0xc68642 });
+  const visorMat  = new THREE.MeshBasicMaterial({ color: 0xff2200 });
+  const accentMat = new THREE.MeshBasicMaterial({ color: 0xff4422 });
+  const redMat    = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+
+  const bootGeo = new THREE.BoxGeometry(0.18*S, 0.14*S, 0.28*S);
+  const leftBoot = new THREE.Mesh(bootGeo, darkMat);
+  const rightBoot = new THREE.Mesh(bootGeo, darkMat);
+  leftBoot.position.set(-0.12*S, 0.07*S, 0.02*S);
+  rightBoot.position.set(0.12*S, 0.07*S, 0.02*S);
+  root.add(leftBoot, rightBoot);
+
+  const legGeo = new THREE.BoxGeometry(0.14*S, 0.80*S, 0.14*S);
+  const leftLeg = new THREE.Mesh(legGeo, darkMat);
+  const rightLeg = new THREE.Mesh(legGeo, darkMat);
+  leftLeg.position.set(-0.12*S, 0.54*S, 0);
+  rightLeg.position.set(0.12*S, 0.54*S, 0);
+  root.add(leftLeg, rightLeg);
+  [leftLeg, rightLeg].forEach(leg => {
+    const kp = new THREE.Mesh(new THREE.BoxGeometry(0.16*S, 0.12*S, 0.17*S), armorMat);
+    kp.position.set(0, -0.10*S, 0.06*S); leg.add(kp);
+  });
+
+  const hips = new THREE.Mesh(new THREE.BoxGeometry(0.40*S, 0.14*S, 0.22*S), darkMat);
+  hips.position.set(0, 0.98*S, 0); root.add(hips);
+
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.44*S, 0.58*S, 0.24*S), bodyMat);
+  torso.position.set(0, 1.36*S, 0); root.add(torso);
+  const chest = new THREE.Mesh(new THREE.BoxGeometry(0.40*S, 0.42*S, 0.07*S), armorMat);
+  chest.position.set(0, 0.02*S, 0.10*S); torso.add(chest);
+  [-0.28*S, 0.28*S].forEach(sx => {
+    const sp = new THREE.Mesh(new THREE.BoxGeometry(0.14*S, 0.12*S, 0.20*S), armorMat);
+    sp.position.set(sx, 0.22*S, 0); torso.add(sp);
+  });
+
+  const upperArmGeo = new THREE.BoxGeometry(0.12*S, 0.34*S, 0.12*S);
+  const forearmGeo = new THREE.BoxGeometry(0.10*S, 0.34*S, 0.10*S);
+  const handGeo = new THREE.BoxGeometry(0.09*S, 0.12*S, 0.12*S);
+
+  const rightArm = new THREE.Group();
+  const rSJ = new THREE.Group(); rightArm.add(rSJ);
+  rSJ.add(new THREE.Mesh(upperArmGeo, bodyMat));
+  const rEJ = new THREE.Group(); rEJ.position.set(0, -0.34*S, 0); rSJ.add(rEJ);
+  rEJ.add(new THREE.Mesh(forearmGeo, bodyMat));
+  const rH = new THREE.Mesh(handGeo, skinMat); rH.position.set(0, -0.36*S, 0); rEJ.add(rH);
+  rSJ.rotation.set(-0.55, -0.50, 0.15); rEJ.rotation.set(-0.90, 0, 0);
+  rightArm.position.set(0.22*S, 0.18*S, 0); torso.add(rightArm);
+
+  const leftArm = new THREE.Group();
+  const lSJ = new THREE.Group(); leftArm.add(lSJ);
+  lSJ.add(new THREE.Mesh(upperArmGeo, bodyMat));
+  const lEJ = new THREE.Group(); lEJ.position.set(0, -0.34*S, 0); lSJ.add(lEJ);
+  lEJ.add(new THREE.Mesh(forearmGeo, bodyMat));
+  const lH = new THREE.Mesh(handGeo, skinMat); lH.position.set(0, -0.36*S, 0); lEJ.add(lH);
+  lSJ.rotation.set(-0.65, 0.50, -0.15); lEJ.rotation.set(-0.80, 0, 0);
+  leftArm.position.set(-0.22*S, 0.18*S, 0); torso.add(leftArm);
+
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.07*S, 0.08*S, 0.12*S, 8), skinMat);
+  neck.position.set(0, 1.70*S, 0); root.add(neck);
+
+  const headGroup = new THREE.Group();
+  headGroup.position.set(0, 1.84*S, 0); root.add(headGroup);
+  const helm = new THREE.Mesh(new THREE.BoxGeometry(0.32*S, 0.32*S, 0.32*S), armorMat);
+  headGroup.add(helm);
+  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.28*S, 0.10*S, 0.05*S), visorMat);
+  visor.position.set(0, 0.02*S, 0.15*S); headGroup.add(visor);
+  const chin = new THREE.Mesh(new THREE.BoxGeometry(0.22*S, 0.07*S, 0.08*S), darkMat);
+  chin.position.set(0, -0.12*S, 0.10*S); headGroup.add(chin);
+
+  // Weapon
+  const weaponGroup = new THREE.Group();
+  weaponGroup.position.set(0.0, -0.10*S, 0.38*S); torso.add(weaponGroup);
+  const metalMat = new THREE.MeshLambertMaterial({ color: 0x222226 });
+  const polyMat = new THREE.MeshLambertMaterial({ color: 0x141416 });
+  const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.07*S, 0.10*S, 0.38*S), metalMat);
+  receiver.position.set(0, 0, 0.05*S); weaponGroup.add(receiver);
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.016*S, 0.016*S, 0.36*S, 10), metalMat);
+  barrel.rotation.x = Math.PI/2; barrel.position.set(0, 0.014*S, 0.40*S); weaponGroup.add(barrel);
+  const mag = new THREE.Mesh(new THREE.BoxGeometry(0.042*S, 0.14*S, 0.055*S), polyMat);
+  mag.position.set(0, -0.11*S, 0.06*S); weaponGroup.add(mag);
+
+  // Glow strips
+  const glowMat = new THREE.MeshBasicMaterial({ color: 0xff2200 });
+  [leftLeg, rightLeg].forEach((leg, i) => {
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(0.025*S, 0.56*S, 0.05*S), glowMat);
+    strip.position.set(i === 0 ? -0.07*S : 0.07*S, 0, 0.05*S); leg.add(strip);
+  });
+  [-0.21*S, 0.21*S].forEach(sx => {
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(0.025*S, 0.42*S, 0.05*S), glowMat);
+    strip.position.set(sx, 0, 0.09*S); torso.add(strip);
+  });
+  const helmStrip = new THREE.Mesh(new THREE.BoxGeometry(0.28*S, 0.025*S, 0.05*S), glowMat);
+  helmStrip.position.set(0, -0.10*S, 0.14*S); headGroup.add(helmStrip);
+
+  const muzzleAnchor = new THREE.Object3D();
+  muzzleAnchor.position.set(0, 0.014*S, 0.64*S); weaponGroup.add(muzzleAnchor);
+
+  const dmgAnchor = new THREE.Object3D();
+  dmgAnchor.position.set(0, 2.20*S, 0); root.add(dmgAnchor);
+
+  root.position.set(0, 0, 0);
+  if (typeof scene !== 'undefined') scene.add(root);
+  else setTimeout(() => { if (typeof scene !== 'undefined') scene.add(root); }, 1000);
+
+  return {
+    mesh: root, headGroup, leftLeg, rightLeg, leftArm, rightArm,
+    weaponGroup, muzzleAnchor,
+    hpFill: null, hpBg: dmgAnchor, nameTag: null,
+    hp: 100, shield: 100, walkCycle: 0,
+    x: 0, y: PLAYER_HEIGHT, z: 0, yaw: 0, pitch: 0,
+    tx: 0, ty: PLAYER_HEIGHT, tz: 0, tyaw: 0, tpitch: 0,
+    dead: false, id, playerName: 'Player',
+  };
+}
+
+function removeRemotePlayer(id) {
+  const rp = remotePlayers[id];
+  if (!rp) return;
+  scene.remove(rp.mesh);
+  delete remotePlayers[id];
+}
+
+function updateRemoteHPBar() {}
+
+function updateRemotePlayers(dt) {
+  const LERP = Math.min(1, 18 * dt);
+  for (const rp of Object.values(remotePlayers)) {
+    if (rp.dead) continue;
+    rp.x += (rp.tx - rp.x) * LERP;
+    rp.y += (rp.ty - rp.y) * LERP;
+    rp.z += (rp.tz - rp.z) * LERP;
+    rp.yaw += (rp.tyaw - rp.yaw) * LERP;
+    rp.mesh.position.set(rp.x, rp.y - PLAYER_HEIGHT, rp.z);
+    rp.mesh.rotation.y = rp.yaw + Math.PI;
+
+    const moving = Math.abs(rp.tx - rp.x) > 0.01 || Math.abs(rp.tz - rp.z) > 0.01;
+    if (moving) {
+      rp.walkCycle += dt * 8;
+      const sw = Math.sin(rp.walkCycle) * 0.4;
+      rp.leftLeg.rotation.x = sw;
+      rp.rightLeg.rotation.x = -sw;
+    } else {
+      rp.leftLeg.rotation.x *= 0.85;
+      rp.rightLeg.rotation.x *= 0.85;
+    }
+  }
+}
+
+function checkPVPHit() { return null; }
+function ensurePVPHud() {}
+function setPVPStatus() {}
+function updateOppHPBar() {}
+function showPVPOverlay() {}
+function hidePVPOverlay() {}
+
+// TDM move broadcast
+let _tdmMoveTimer = 0;
+function tickPVPMove(dt) {
+  if (!state.running || !TDM_ROOM_CODE) return;
+  _tdmMoveTimer += dt;
+  if (_tdmMoveTimer < 1/20) return; // 20 Hz
+  _tdmMoveTimer = 0;
+  socket.emit("pvp:move", {
+    x: camera.position.x, y: camera.position.y, z: camera.position.z,
+    yaw: state.yaw, pitch: state.pitch,
+  });
+}
+
+function pvpShoot() {
+  // TDM: check hits against remote players (enemies on other team)
+  if (!TDM_ROOM_CODE) return;
+  const raycaster2 = new THREE.Raycaster();
+  raycaster2.setFromCamera(new THREE.Vector2(0, 0), camera);
+  const dir = raycaster2.ray.direction.clone();
+
+  for (const rp of Object.values(remotePlayers)) {
+    if (rp.dead) continue;
+    const toPlayer = new THREE.Vector3(rp.x, rp.y - 0.5, rp.z).sub(camera.position);
+    const dist = toPlayer.length();
+    if (dist > 50) continue;
+    toPlayer.normalize();
+    const dot = dir.dot(toPlayer);
+    const threshold = Math.max(0.97, 1 - (0.8 / dist));
+    if (dot > threshold) {
+      socket.emit("pvp:hit", {
+        targetId: rp.id,
+        damage: currentWeapon.damage,
+        headshot: false,
+      });
+      showHitmarker(false);
+      break;
+    }
+  }
+}
+
+// ── Socket events for TDM room ───────────────────────────────────────────
+socket.on("pvp:opponentJoined", ({ id, player }) => {
+  if (typeof scene === 'undefined') return; // scene not ready yet
+  if (remotePlayers[id]) removeRemotePlayer(id);
+  remotePlayers[id] = buildRemotePlayerModel(id);
+  const rp = remotePlayers[id];
+  rp.playerName = player.name || 'Player';
+  if (player.x) { rp.x = rp.tx = player.x; rp.y = rp.ty = player.y; rp.z = rp.tz = player.z; }
+  rp.mesh.position.set(rp.x, rp.y - PLAYER_HEIGHT, rp.z);
+  console.log("TDM: player joined", id, rp.playerName);
+  updateTDMLobbyCount();
+});
+
+socket.on("pvp:opponentLeft", ({ id }) => {
+  removeRemotePlayer(id);
+  updateTDMLobbyCount();
+});
+
+socket.on("pvp:opponentMoved", ({ id, x, y, z, yaw, pitch }) => {
+  const rp = remotePlayers[id];
+  if (!rp) return;
+  rp.tx = x; rp.ty = y; rp.tz = z;
+  rp.tyaw = yaw; rp.tpitch = pitch || 0;
+});
+
+socket.on("pvp:hit", ({ shooterId, damage, headshot, hp, shield }) => {
+  state.playerHP = Math.max(0, hp);
+  state.playerShield = Math.max(0, shield);
+  updateHealthUI();
+  triggerHitFlash();
+  if (state.playerHP <= 0) {
+    // Respawn in TDM
+    tdmRedScore++;
+    updateTDMScoreHUD();
+    if (tdmRedScore >= TDM_KILL_TARGET) {
+      state.gameOver = true;
+      document.getElementById('tdm-result-title').textContent = 'DEFEATED';
+      document.getElementById('tdm-result-title').style.color = '#ff3333';
+      document.getElementById('gameover-subtitle').textContent = 'ENEMY TEAM WINS';
+      document.getElementById('tdm-final-score').textContent = `Blue ${tdmBlueScore} — Red ${tdmRedScore}`;
+      document.getElementById('gameover-screen').style.display = 'flex';
+      document.exitPointerLock();
+    } else {
+      setTimeout(() => {
+        if (state.gameOver) return;
+        state.playerHP = SETTINGS.PLAYER_HP;
+        state.playerShield = SETTINGS.PLAYER_SHIELD;
+        camera.position.set(-25 + Math.random() * 10, PLAYER_HEIGHT, (Math.random() - 0.5) * 30);
+        updateHealthUI();
+      }, 3000);
+    }
+  }
+});
+
+socket.on("pvp:playerDied", ({ deadId, killerId }) => {
+  if (remotePlayers[deadId]) {
+    remotePlayers[deadId].dead = true;
+    remotePlayers[deadId].mesh.visible = false;
+    setTimeout(() => {
+      if (remotePlayers[deadId]) {
+        remotePlayers[deadId].dead = false;
+        remotePlayers[deadId].mesh.visible = true;
+      }
+    }, 3000);
+  }
+  if (killerId === socket.id) {
+    tdmBlueScore++;
+    updateTDMScoreHUD();
+    addKillFeed(`💀 ${playerName} killed ${remotePlayers[deadId]?.playerName || 'enemy'}`);
+  }
+});
+
+function updateTDMLobbyCount() {
+  const count = 1 + Object.keys(remotePlayers).length;
+  const el = document.getElementById('tdm-players-display');
+  if (el) el.textContent = `${count} / ${TDM_TEAM_SIZE * 2} players (AI fills ${Math.max(0, TDM_TEAM_SIZE * 2 - count)} slots)`;
+}
+
+function updateTDMScoreHUD() {
+  const blueEl = document.getElementById('blue-score-num');
+  const redEl = document.getElementById('red-score-num');
+  if (blueEl) blueEl.textContent = tdmBlueScore;
+  if (redEl) redEl.textContent = tdmRedScore;
+}
+
+// Join the TDM room
+if (TDM_ROOM_CODE) {
+  const emitTDMJoin = () => {
+    console.log("Emitting pvp:joinRoom for TDM with code:", TDM_ROOM_CODE);
+    socket.emit("pvp:joinRoom", { code: TDM_ROOM_CODE, name: playerName });
+  };
+  if (socket.connected) emitTDMJoin();
+  else socket.on("connect", emitTDMJoin);
+}
 
 // ── Custom Keybinds (loaded from localStorage) ───────────────────────────
 const _defaultBinds = {
@@ -995,9 +1351,7 @@ const _defaultBinds = {
 const KB = (() => {
   try {
     const saved = localStorage.getItem('arenaKeybinds');
-    const binds = saved ? { ..._defaultBinds, ...JSON.parse(saved) } : { ..._defaultBinds };
-    console.log('Keybinds loaded:', binds);
-    return binds;
+    return saved ? { ..._defaultBinds, ...JSON.parse(saved) } : { ..._defaultBinds };
   } catch(e) { return { ..._defaultBinds }; }
 })();
 
@@ -1012,7 +1366,6 @@ window.addEventListener('load', () => {
   if (el('hud-key-weapon1')) el('hud-key-weapon1').textContent = keyLabel(KB.weapon1);
   if (el('hud-key-weapon2')) el('hud-key-weapon2').textContent = keyLabel(KB.weapon2);
   if (el('hud-key-ability')) el('hud-key-ability').textContent = keyLabel(KB.ability);
-  if (el('hud-key-heal'))    el('hud-key-heal').textContent    = keyLabel(KB.heal);
   if (el('hud-key-pickup'))  el('hud-key-pickup').textContent  = keyLabel(KB.pickup);
   // Update slot labels based on loadout
   const slot1Label = el('inv-slot-1-label');
@@ -1032,1036 +1385,13 @@ window.addEventListener('load', () => {
   if (s2svg) s2svg.innerHTML = WEAPON_SVGS[LOADOUT_SLOT2] || WEAPON_SVGS.shotgun;
 });
 
-// ── Remote player registry ────────────────────────────────────────────────
-const remotePlayers = {};   // id → { mesh, group, hp, shield, hpFill, nameTag, ... }
-
-// ── Build a humanoid player model (seen by opponent) ─────────────────────
-// ── Load the GLTF model for each player ──────────────────────────────────
-// ── Build block-style opponent player model (scaled up, more detail) ─────
-function buildRemotePlayerModel(id) {
-  const root = new THREE.Group();
-  const S = 1.25; // scale factor — bigger, more imposing
-
-  const bodyMat   = new THREE.MeshLambertMaterial({ color: 0x8b2020 });
-  const armorMat  = new THREE.MeshLambertMaterial({ color: 0x5c1010 });
-  const darkMat   = new THREE.MeshLambertMaterial({ color: 0x1a0808 });
-  const skinMat   = new THREE.MeshLambertMaterial({ color: 0xc68642 });
-  const visorMat  = new THREE.MeshBasicMaterial({ color: 0xff2200 });
-  const accentMat = new THREE.MeshBasicMaterial({ color: 0xff4422 });
-  const gunMat    = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
-  const redMat    = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-
-  // ── Feet / Boots (chunkier, tactical) ─────────────────────────────────
-  const bootGeo = new THREE.BoxGeometry(0.18*S, 0.14*S, 0.28*S);
-  const leftBoot = new THREE.Mesh(bootGeo, darkMat);
-  const rightBoot = new THREE.Mesh(bootGeo, darkMat);
-  leftBoot.position.set(-0.12*S, 0.07*S, 0.02*S);
-  rightBoot.position.set(0.12*S, 0.07*S, 0.02*S);
-  root.add(leftBoot, rightBoot);
-  // Boot soles
-  const soleGeo = new THREE.BoxGeometry(0.19*S, 0.04*S, 0.30*S);
-  const leftSole = new THREE.Mesh(soleGeo, new THREE.MeshLambertMaterial({ color: 0x0a0a0a }));
-  const rightSole = new THREE.Mesh(soleGeo, new THREE.MeshLambertMaterial({ color: 0x0a0a0a }));
-  leftSole.position.set(0, -0.05*S, 0.01*S);
-  rightSole.position.set(0, -0.05*S, 0.01*S);
-  leftBoot.add(leftSole);
-  rightBoot.add(rightSole);
-
-  // ── Legs (longer, armored) ────────────────────────────────────────────
-  const legGeo = new THREE.BoxGeometry(0.14*S, 0.80*S, 0.14*S);
-  const leftLeg  = new THREE.Mesh(legGeo, darkMat);
-  const rightLeg = new THREE.Mesh(legGeo, darkMat);
-  leftLeg.position.set(-0.12*S, 0.54*S, 0);
-  rightLeg.position.set( 0.12*S, 0.54*S, 0);
-  root.add(leftLeg, rightLeg);
-
-  // Knee pads (bigger)
-  [leftLeg, rightLeg].forEach(leg => {
-    const kp = new THREE.Mesh(new THREE.BoxGeometry(0.16*S, 0.12*S, 0.17*S), armorMat);
-    kp.position.set(0, -0.10*S, 0.06*S);
-    leg.add(kp);
-    const kpAccent = new THREE.Mesh(new THREE.BoxGeometry(0.08*S, 0.04*S, 0.02*S), accentMat);
-    kpAccent.position.set(0, 0, 0.08*S);
-    kp.add(kpAccent);
-  });
-  // Thigh armor
-  [leftLeg, rightLeg].forEach((leg, i) => {
-    const thigh = new THREE.Mesh(new THREE.BoxGeometry(0.15*S, 0.20*S, 0.16*S), armorMat);
-    thigh.position.set(i === 0 ? -0.01*S : 0.01*S, 0.18*S, 0.02*S);
-    leg.add(thigh);
-  });
-
-  // ── Hips / Belt ───────────────────────────────────────────────────────
-  const hips = new THREE.Mesh(new THREE.BoxGeometry(0.40*S, 0.14*S, 0.22*S), darkMat);
-  hips.position.set(0, 0.98*S, 0);
-  root.add(hips);
-  const belt = new THREE.Mesh(new THREE.BoxGeometry(0.42*S, 0.07*S, 0.24*S), armorMat);
-  belt.position.set(0, 0.04*S, 0);
-  hips.add(belt);
-  // Belt pouches
-  [-0.16*S, 0.16*S].forEach(px => {
-    const pouch = new THREE.Mesh(new THREE.BoxGeometry(0.06*S, 0.06*S, 0.08*S), darkMat);
-    pouch.position.set(px, -0.02*S, 0.10*S);
-    hips.add(pouch);
-  });
-
-  // ── Torso (broader, more armored) ─────────────────────────────────────
-  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.44*S, 0.58*S, 0.24*S), bodyMat);
-  torso.position.set(0, 1.36*S, 0);
-  root.add(torso);
-
-  // Chest plate (larger, layered)
-  const chest = new THREE.Mesh(new THREE.BoxGeometry(0.40*S, 0.42*S, 0.07*S), armorMat);
-  chest.position.set(0, 0.02*S, 0.10*S);
-  torso.add(chest);
-
-  // Chest accent stripe
-  const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.05*S, 0.34*S, 0.02*S), accentMat);
-  stripe.position.set(0, 0, 0.04*S);
-  chest.add(stripe);
-  // Chest cross-strap
-  const strap = new THREE.Mesh(new THREE.BoxGeometry(0.03*S, 0.50*S, 0.02*S), darkMat);
-  strap.rotation.z = 0.4;
-  strap.position.set(-0.08*S, 0, 0.04*S);
-  chest.add(strap);
-
-  // Back plate
-  const backPlate = new THREE.Mesh(new THREE.BoxGeometry(0.36*S, 0.36*S, 0.05*S), armorMat);
-  backPlate.position.set(0, 0, -0.10*S);
-  torso.add(backPlate);
-  // Backpack
-  const backpack = new THREE.Mesh(new THREE.BoxGeometry(0.24*S, 0.28*S, 0.12*S), darkMat);
-  backpack.position.set(0, -0.04*S, -0.16*S);
-  torso.add(backpack);
-
-  // Shoulder pads (bigger, angular)
-  [-0.28*S, 0.28*S].forEach(sx => {
-    const sp = new THREE.Mesh(new THREE.BoxGeometry(0.14*S, 0.12*S, 0.20*S), armorMat);
-    sp.position.set(sx, 0.22*S, 0);
-    torso.add(sp);
-    const spAccent = new THREE.Mesh(new THREE.BoxGeometry(0.06*S, 0.03*S, 0.12*S), accentMat);
-    spAccent.position.set(0, 0.06*S, 0);
-    sp.add(spAccent);
-  });
-
-  // ── Arms posed gripping rifle ─────────────────────────────────────────
-  const upperArmGeo = new THREE.BoxGeometry(0.12*S, 0.34*S, 0.12*S);
-  const forearmGeo  = new THREE.BoxGeometry(0.10*S, 0.34*S, 0.10*S);
-  const handGeo     = new THREE.BoxGeometry(0.09*S, 0.12*S, 0.12*S);
-
-  // RIGHT ARM — holds pistol grip
-  const rightArm = new THREE.Group();
-  const rShoulderJoint = new THREE.Group();
-  rightArm.add(rShoulderJoint);
-  const rUpperArm = new THREE.Mesh(upperArmGeo, bodyMat);
-  rUpperArm.position.set(0, -0.17*S, 0);
-  rShoulderJoint.add(rUpperArm);
-  const rElbowGuard = new THREE.Mesh(new THREE.BoxGeometry(0.13*S, 0.08*S, 0.13*S), armorMat);
-  rElbowGuard.position.set(0, -0.30*S, 0);
-  rShoulderJoint.add(rElbowGuard);
-  const rElbowJoint = new THREE.Group();
-  rElbowJoint.position.set(0, -0.34*S, 0);
-  rShoulderJoint.add(rElbowJoint);
-  const rForearm = new THREE.Mesh(forearmGeo, bodyMat);
-  rForearm.position.set(0, -0.17*S, 0);
-  rElbowJoint.add(rForearm);
-  const rHand = new THREE.Mesh(handGeo, skinMat);
-  rHand.position.set(0, -0.36*S, 0);
-  rElbowJoint.add(rHand);
-
-  // Pose right arm: shoulder pitched forward, elbow bent to bring hand to pistol grip
-  rShoulderJoint.rotation.set(-0.55, -0.50, 0.15);
-  rElbowJoint.rotation.set(-0.90, 0, 0);
-  rightArm.position.set(0.22*S, 0.18*S, 0);
-  torso.add(rightArm);
-
-  // LEFT ARM — holds foregrip
-  const leftArm = new THREE.Group();
-  const lShoulderJoint = new THREE.Group();
-  leftArm.add(lShoulderJoint);
-  const lUpperArm = new THREE.Mesh(upperArmGeo, bodyMat);
-  lUpperArm.position.set(0, -0.17*S, 0);
-  lShoulderJoint.add(lUpperArm);
-  const lElbowGuard = new THREE.Mesh(new THREE.BoxGeometry(0.13*S, 0.08*S, 0.13*S), armorMat);
-  lElbowGuard.position.set(0, -0.30*S, 0);
-  lShoulderJoint.add(lElbowGuard);
-  const lElbowJoint = new THREE.Group();
-  lElbowJoint.position.set(0, -0.34*S, 0);
-  lShoulderJoint.add(lElbowJoint);
-  const lForearm = new THREE.Mesh(forearmGeo, bodyMat);
-  lForearm.position.set(0, -0.17*S, 0);
-  lElbowJoint.add(lForearm);
-  const lHand = new THREE.Mesh(handGeo, skinMat);
-  lHand.position.set(0, -0.36*S, 0);
-  lElbowJoint.add(lHand);
-
-  // Pose left arm: shoulder pitched more forward, elbow bent to reach foregrip
-  lShoulderJoint.rotation.set(-0.65, 0.50, -0.15);
-  lElbowJoint.rotation.set(-0.80, 0, 0);
-  leftArm.position.set(-0.22*S, 0.18*S, 0);
-  torso.add(leftArm);
-
-  // ── Neck ──────────────────────────────────────────────────────────────
-  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.07*S, 0.08*S, 0.12*S, 8), skinMat);
-  neck.position.set(0, 1.70*S, 0);
-  root.add(neck);
-  // Neck guard
-  const neckGuard = new THREE.Mesh(new THREE.BoxGeometry(0.22*S, 0.06*S, 0.14*S), armorMat);
-  neckGuard.position.set(0, 1.68*S, -0.04*S);
-  root.add(neckGuard);
-
-  // ── Head (rotates with pitch) ─────────────────────────────────────────
-  const headGroup = new THREE.Group();
-  headGroup.position.set(0, 1.84*S, 0);
-  root.add(headGroup);
-
-  // Helmet (bigger, angular)
-  const helm = new THREE.Mesh(new THREE.BoxGeometry(0.32*S, 0.32*S, 0.32*S), armorMat);
-  headGroup.add(helm);
-  // Helmet ridge (mohawk)
-  const ridge = new THREE.Mesh(new THREE.BoxGeometry(0.07*S, 0.06*S, 0.28*S), darkMat);
-  ridge.position.set(0, 0.16*S, 0);
-  headGroup.add(ridge);
-  // Visor (wider, menacing)
-  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.28*S, 0.10*S, 0.05*S), visorMat);
-  visor.position.set(0, 0.02*S, 0.15*S);
-  headGroup.add(visor);
-  // Visor glow edge
-  const visorEdge = new THREE.Mesh(new THREE.BoxGeometry(0.30*S, 0.02*S, 0.03*S), accentMat);
-  visorEdge.position.set(0, -0.04*S, 0.16*S);
-  headGroup.add(visorEdge);
-  // Chin guard
-  const chin = new THREE.Mesh(new THREE.BoxGeometry(0.22*S, 0.07*S, 0.08*S), darkMat);
-  chin.position.set(0, -0.12*S, 0.10*S);
-  headGroup.add(chin);
-  // Ear pieces (comms)
-  [-0.17*S, 0.17*S].forEach(ex => {
-    const ear = new THREE.Mesh(new THREE.BoxGeometry(0.05*S, 0.10*S, 0.10*S), darkMat);
-    ear.position.set(ex, 0, 0);
-    headGroup.add(ear);
-    if (ex > 0) {
-      const antenna = new THREE.Mesh(new THREE.BoxGeometry(0.015*S, 0.12*S, 0.015*S), accentMat);
-      antenna.position.set(0.02*S, 0.08*S, 0);
-      ear.add(antenna);
-    }
-  });
-
-  // ── Detailed rifle — held in both hands ────────────────────────────────
-  // Weapon is child of torso so it moves with the body
-  const weaponGroup = new THREE.Group();
-  weaponGroup.position.set(0.0, -0.10*S, 0.38*S);
-  torso.add(weaponGroup);
-
-  const metalMat = new THREE.MeshLambertMaterial({ color: 0x222226 });
-  const polyMat  = new THREE.MeshLambertMaterial({ color: 0x141416 });
-  const gripMat  = new THREE.MeshLambertMaterial({ color: 0x0c0c0e });
-
-  // Receiver
-  const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.07*S, 0.10*S, 0.38*S), metalMat);
-  receiver.position.set(0, 0, 0.05*S);
-  weaponGroup.add(receiver);
-
-  // Top rail
-  const rail = new THREE.Mesh(new THREE.BoxGeometry(0.05*S, 0.016*S, 0.46*S), polyMat);
-  rail.position.set(0, 0.058*S, 0.10*S);
-  weaponGroup.add(rail);
-
-  // Sight posts
-  const rearSight = new THREE.Mesh(new THREE.BoxGeometry(0.028*S, 0.028*S, 0.020*S), metalMat);
-  rearSight.position.set(0, 0.078*S, -0.02*S);
-  weaponGroup.add(rearSight);
-  const frontSight = new THREE.Mesh(new THREE.BoxGeometry(0.022*S, 0.034*S, 0.016*S), metalMat);
-  frontSight.position.set(0, 0.082*S, 0.32*S);
-  weaponGroup.add(frontSight);
-
-  // Barrel
-  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.016*S, 0.016*S, 0.36*S, 10), metalMat);
-  barrel.rotation.x = Math.PI / 2;
-  barrel.position.set(0, 0.014*S, 0.40*S);
-  weaponGroup.add(barrel);
-
-  // Muzzle brake
-  const muzzle = new THREE.Mesh(new THREE.CylinderGeometry(0.025*S, 0.025*S, 0.055*S, 8), polyMat);
-  muzzle.rotation.x = Math.PI / 2;
-  muzzle.position.set(0, 0.014*S, 0.60*S);
-  weaponGroup.add(muzzle);
-
-  // Handguard
-  const handguard = new THREE.Mesh(new THREE.BoxGeometry(0.06*S, 0.06*S, 0.24*S), polyMat);
-  handguard.position.set(0, -0.005*S, 0.34*S);
-  weaponGroup.add(handguard);
-
-  // Foregrip
-  const foregrip = new THREE.Mesh(new THREE.BoxGeometry(0.034*S, 0.095*S, 0.050*S), gripMat);
-  foregrip.position.set(0, -0.08*S, 0.28*S);
-  weaponGroup.add(foregrip);
-
-  // Magazine
-  const mag = new THREE.Mesh(new THREE.BoxGeometry(0.042*S, 0.14*S, 0.055*S), polyMat);
-  mag.position.set(0, -0.11*S, 0.06*S);
-  weaponGroup.add(mag);
-  const magTip = new THREE.Mesh(new THREE.BoxGeometry(0.044*S, 0.020*S, 0.057*S), gripMat);
-  magTip.position.set(0, -0.19*S, 0.06*S);
-  weaponGroup.add(magTip);
-
-  // Pistol grip
-  const pgrip = new THREE.Mesh(new THREE.BoxGeometry(0.034*S, 0.12*S, 0.044*S), gripMat);
-  pgrip.position.set(0, -0.09*S, -0.06*S);
-  pgrip.rotation.x = -0.15;
-  weaponGroup.add(pgrip);
-
-  // Trigger guard
-  const triggerGuard = new THREE.Mesh(new THREE.TorusGeometry(0.025*S, 0.006*S, 6, 12, Math.PI), metalMat);
-  triggerGuard.rotation.y = Math.PI / 2;
-  triggerGuard.rotation.z = Math.PI;
-  triggerGuard.position.set(0, -0.05*S, -0.03*S);
-  weaponGroup.add(triggerGuard);
-
-  // Stock
-  const stock = new THREE.Mesh(new THREE.BoxGeometry(0.050*S, 0.078*S, 0.20*S), polyMat);
-  stock.position.set(0, 0.005*S, -0.22*S);
-  weaponGroup.add(stock);
-  const cheek = new THREE.Mesh(new THREE.BoxGeometry(0.044*S, 0.022*S, 0.18*S), gripMat);
-  cheek.position.set(0, 0.050*S, -0.22*S);
-  weaponGroup.add(cheek);
-  const buttPad = new THREE.Mesh(new THREE.BoxGeometry(0.052*S, 0.090*S, 0.022*S), gripMat);
-  buttPad.position.set(0, 0.005*S, -0.33*S);
-  weaponGroup.add(buttPad);
-
-  // Laser stripe
-  const laserStripe = new THREE.Mesh(new THREE.BoxGeometry(0.016*S, 0.006*S, 0.36*S), redMat);
-  laserStripe.position.set(0.024*S, 0.034*S, 0.10*S);
-  weaponGroup.add(laserStripe);
-
-  // Muzzle flash anchor
-  const muzzleAnchor = new THREE.Object3D();
-  muzzleAnchor.position.set(0, 0.014*S, 0.64*S);
-  weaponGroup.add(muzzleAnchor);
-
-  // ── Glowing strips (emissive red, always visible) ─────────────────────
-  const glowMat = new THREE.MeshBasicMaterial({ color: 0xff2200 });
-
-  // Leg strips (outer side)
-  [leftLeg, rightLeg].forEach((leg, i) => {
-    const strip = new THREE.Mesh(new THREE.BoxGeometry(0.025*S, 0.56*S, 0.05*S), glowMat);
-    strip.position.set(i === 0 ? -0.07*S : 0.07*S, 0, 0.05*S);
-    leg.add(strip);
-  });
-
-  // Torso side strips
-  [-0.21*S, 0.21*S].forEach(sx => {
-    const strip = new THREE.Mesh(new THREE.BoxGeometry(0.025*S, 0.42*S, 0.05*S), glowMat);
-    strip.position.set(sx, 0, 0.09*S);
-    torso.add(strip);
-  });
-
-  // Arm strips
-  [leftArm, rightArm].forEach(arm => {
-    const strip = new THREE.Mesh(new THREE.BoxGeometry(0.025*S, 0.28*S, 0.035*S), glowMat);
-    strip.position.set(0, -0.34*S, 0.06*S);
-    arm.add(strip);
-  });
-
-  // Helmet strip
-  const helmStrip = new THREE.Mesh(new THREE.BoxGeometry(0.28*S, 0.025*S, 0.05*S), glowMat);
-  helmStrip.position.set(0, -0.10*S, 0.14*S);
-  headGroup.add(helmStrip);
-
-  // Back spine strip
-  const spineStrip = new THREE.Mesh(new THREE.BoxGeometry(0.035*S, 0.46*S, 0.025*S), glowMat);
-  spineStrip.position.set(0, 0, -0.11*S);
-  torso.add(spineStrip);
-
-  // ── Damage number anchor ──────────────────────────────────────────────
-  const dmgAnchor = new THREE.Object3D();
-  dmgAnchor.position.set(0, 2.20*S, 0);
-  root.add(dmgAnchor);
-
-  root.position.set(0, 0, 0);
-  scene.add(root);
-
-  return {
-    mesh: root, headGroup, leftLeg, rightLeg, leftArm, rightArm,
-    weaponGroup, muzzleAnchor,
-    hpFill: null, hpBg: dmgAnchor, nameTag: null,
-    hp: 100, shield: 100,
-    walkCycle: 0,
-    x: 0, y: 2.3, z: 0, yaw: 0, pitch: 0,
-    tx: 0, ty: 2.3, tz: 0, tyaw: 0, tpitch: 0,
-    dead: false,
-    id,
-  };
-}
-
-function removeRemotePlayer(id) {
-  const rp = remotePlayers[id];
-  if (!rp) return;
-  scene.remove(rp.mesh);
-  delete remotePlayers[id];
-}
-
-function updateRemoteHPBar(rp) {}
-
-// ── Interpolate remote players each frame ────────────────────────────────
-function updateRemotePlayers(dt) {
-  const LERP = Math.min(1, 18 * dt);
-  for (const rp of Object.values(remotePlayers)) {
-    if (rp.dead) continue;
-
-    rp.x = rp.x + (rp.tx - rp.x) * LERP;
-    rp.y = rp.y + (rp.ty - rp.y) * LERP;
-    rp.z = rp.z + (rp.tz - rp.z) * LERP;
-    rp.yaw   = rp.yaw   + (rp.tyaw   - rp.yaw)   * LERP;
-    rp.pitch = rp.pitch + (rp.tpitch - rp.pitch)  * LERP;
-
-    // Feet Y = camera Y - PLAYER_HEIGHT
-    rp.mesh.position.set(rp.x, rp.y - PLAYER_HEIGHT, rp.z);
-    rp.mesh.rotation.y = rp.yaw + Math.PI;
-    rp.headGroup.rotation.x = rp.pitch;
-    // Weapon aims where the player looks (pitch). Slight downward bias for shoulder rest.
-    if (rp.weaponGroup) rp.weaponGroup.rotation.x = rp.pitch;
-
-    // Walk animation
-    const moving = Math.abs(rp.tx - rp.x) > 0.01 || Math.abs(rp.tz - rp.z) > 0.01;
-    if (moving) {
-      rp.walkCycle += dt * 8;
-      const sw = Math.sin(rp.walkCycle) * 0.55;
-      rp.leftLeg.rotation.x  =  sw;
-      rp.rightLeg.rotation.x = -sw;
-      // Arms stay mostly locked in firing pose — minimal sway
-      rp.leftArm.rotation.x  = -sw * 0.08;
-      rp.rightArm.rotation.x =  sw * 0.08;
-    } else {
-      rp.leftLeg.rotation.x  *= 0.85;
-      rp.rightLeg.rotation.x *= 0.85;
-      rp.leftArm.rotation.x  *= 0.85;
-      rp.rightArm.rotation.x *= 0.85;
-    }
-
-    // Damage anchor faces camera (for number positioning)
-    if (rp.hpBg && rp.hpBg.isObject3D) rp.hpBg.lookAt(camera.position);
-  }
-}
-
-// ── Raycasting against remote players ────────────────────────────────────
-function checkPVPHit(rayOrigin, rayDir) {
-  const ray = new THREE.Raycaster(rayOrigin, rayDir, 0, 80);
-
-  // Collect player meshes to exclude from wall check
-  const playerMeshSet = new Set();
-  for (const rp of Object.values(remotePlayers)) {
-    rp.mesh.traverse(c => { if (c.isMesh) playerMeshSet.add(c); });
-  }
-
-  // Collect wall/structure meshes once for occlusion check (exclude player meshes)
-  const structureMeshes = [];
-  scene.traverse(obj => {
-    if (obj.isMesh && obj.geometry && obj.geometry.type === "BoxGeometry" && !playerMeshSet.has(obj)) {
-      structureMeshes.push(obj);
-    }
-  });
-
-  for (const rp of Object.values(remotePlayers)) {
-    if (rp.dead) continue;
-
-    const meshes = [];
-    rp.mesh.traverse(c => {
-      if (!c.isMesh) return;
-      if (c === rp.hpFill || c === rp.hpBg || c === rp.nameTag) return;
-      if (c.geometry && c.geometry.type === "PlaneGeometry") return;
-      meshes.push(c);
-    });
-
-    const hits = ray.intersectObjects(meshes, true);
-    if (hits.length === 0) continue;
-
-    const hitPoint = hits[0].point;
-    const hitDist = hits[0].distance;
-
-    // Wall collision check — if a wall is closer than the player, block the shot
-    const wallHits = ray.intersectObjects(structureMeshes, true);
-    if (wallHits.length > 0 && wallHits[0].distance < hitDist) {
-      spawnSpark(wallHits[0].point);
-      return null;
-    }
-
-    // Headshot check
-    const headshot =
-      hits[0].object === rp.headGroup.children[0] ||
-      hits[0].object.parent === rp.headGroup;
-
-    return { id: rp.id, headshot, point: hitPoint };
-  }
-
-  // No player hit — check if ray hits a wall for spark effect
-  const wallOnly = ray.intersectObjects(structureMeshes, true);
-  if (wallOnly.length > 0) {
-    spawnSpark(wallOnly[0].point);
-  }
-
-  return null;
-}
-
-// ── PVP HUD ───────────────────────────────────────────────────────────────
-let pvpHudEl = null;
-function ensurePVPHud() {
-  if (pvpHudEl) return;
-  pvpHudEl = document.createElement('div');
-  pvpHudEl.id = 'pvp-hud';
-  pvpHudEl.style.cssText = `
-    position:fixed; top:16px; left:50%; transform:translateX(-50%);
-    display:none; flex-direction:column; align-items:center; gap:4px;
-    pointer-events:none; z-index:50;
-  `;
-  pvpHudEl.innerHTML = `
-    <div id="pvp-status" style="font-size:11px;letter-spacing:3px;color:#44aaff;text-transform:uppercase;font-family:'Courier New',monospace;"></div>
-    <div id="pvp-opp-bar-wrap" style="display:none;flex-direction:column;align-items:center;gap:2px;">
-      <div style="font-size:9px;letter-spacing:2px;color:#aaa;font-family:'Courier New',monospace;">OPPONENT</div>
-      <div style="width:160px;height:10px;background:rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.2);border-radius:2px;overflow:hidden;">
-        <div id="pvp-opp-hp" style="height:100%;width:100%;background:#2255ff;transition:width 0.15s;border-radius:2px;"></div>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(pvpHudEl);
-}
-
-function setPVPStatus(msg, color) {
-  ensurePVPHud();
-  pvpHudEl.style.display = 'flex';
-  document.getElementById('pvp-status').textContent = msg;
-  document.getElementById('pvp-status').style.color = color || '#44aaff';
-}
-
-function updateOppHPBar(hp) {
-  // Removed — no opponent health bar in PVP
-}
-
-// ── PVP overlay (waiting / result) ────────────────────────────────────────
-let pvpOverlayEl = null;
-function showPVPOverlay(html, buttons) {
-  if (!pvpOverlayEl) {
-    pvpOverlayEl = document.createElement('div');
-    pvpOverlayEl.style.cssText = `
-      position:fixed;inset:0;background:rgba(0,0,0,0.82);
-      display:flex;flex-direction:column;align-items:center;justify-content:center;
-      z-index:200;pointer-events:all;font-family:'Courier New',monospace;
-    `;
-    document.body.appendChild(pvpOverlayEl);
-  }
-  pvpOverlayEl.innerHTML = html;
-  pvpOverlayEl.style.display = 'flex';
-  if (buttons) {
-    buttons.forEach(({ label, fn }) => {
-      const btn = document.createElement('button');
-      btn.textContent = label;
-      btn.style.cssText = `
-        margin-top:16px;background:transparent;border:1px solid rgba(255,255,255,0.3);
-        color:#fff;font-family:'Courier New',monospace;font-size:13px;
-        letter-spacing:3px;text-transform:uppercase;padding:12px 32px;cursor:pointer;
-      `;
-      btn.onmouseenter = () => btn.style.background = 'rgba(255,255,255,0.1)';
-      btn.onmouseleave = () => btn.style.background = 'transparent';
-      btn.onclick = fn;
-      pvpOverlayEl.appendChild(btn);
-    });
-  }
-}
-function hidePVPOverlay() {
-  if (pvpOverlayEl) pvpOverlayEl.style.display = 'none';
-}
-
-// ── PVP move throttle ─────────────────────────────────────────────────────
-let pvpMoveTimer = 0;
-const PVP_MOVE_INTERVAL = 1 / 20; // 20 Hz
-
-function tickPVPMove(dt) {
-  if (!pvpMode || !state.running) return;
-  pvpMoveTimer += dt;
-  if (pvpMoveTimer < PVP_MOVE_INTERVAL) return;
-  pvpMoveTimer = 0;
-  socket.emit("pvp:move", {
-    x: camera.position.x,
-    y: camera.position.y,
-    z: camera.position.z,
-    yaw:   state.yaw,
-    pitch: state.pitch,
-  });
-}
-
-// ── Socket events ─────────────────────────────────────────────────────────
-socket.on("pvp:joined", ({ roomId, playerId }) => {
-  console.log("PVP joined room:", roomId);
-});
-
-socket.on("pvp:waiting", () => {
-  showPVPOverlay(`
-    <div style="font-size:28px;letter-spacing:6px;color:#44aaff;margin-bottom:12px;">PVP MODE</div>
-    <div style="font-size:13px;letter-spacing:3px;color:#888;">WAITING FOR OPPONENT...</div>
-    <div style="margin-top:16px;width:40px;height:40px;border:3px solid #44aaff;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
-    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
-  `);
-  setPVPStatus('WAITING FOR OPPONENT', '#888');
-});
-
-socket.on("pvp:opponentJoined", ({ id, player }) => {
-  if (remotePlayers[id]) removeRemotePlayer(id);
-  remotePlayers[id] = buildRemotePlayerModel(id);
-  const rp = remotePlayers[id];
-  rp.playerName = player.name || 'Opponent';
-  // Place at their spawn immediately (no lerp lag on first frame)
-  rp.x  = rp.tx  = player.x || 0;
-  rp.y  = rp.ty  = player.y || 2.3;
-  rp.z  = rp.tz  = player.z || 0;
-  rp.yaw  = rp.tyaw  = player.yaw   || 0;
-  rp.pitch = rp.tpitch = player.pitch || 0;
-  rp.mesh.position.set(rp.x, rp.y - PLAYER_HEIGHT, rp.z);
-  rp.mesh.rotation.y = rp.yaw + Math.PI;
-  updateOppHPBar(100);
-});
-
-// ── PVP Countdown ────────────────────────────────────────────────────────
-function showPVPCountdown(onDone) {
-  gamePaused = true; // freeze movement/shooting
-
-  let countEl = document.getElementById('pvp-countdown');
-  if (!countEl) {
-    countEl = document.createElement('div');
-    countEl.id = 'pvp-countdown';
-    countEl.style.cssText = `
-      position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
-      font-family:'Courier New',monospace; font-size:80px; font-weight:bold;
-      color:#fff; pointer-events:none; z-index:200;
-      text-shadow: 0 0 30px rgba(255,255,255,0.6), 0 0 60px rgba(68,170,255,0.4);
-      transition: transform 0.2s, opacity 0.2s;
-    `;
-    document.body.appendChild(countEl);
-  }
-
-  let count = 3;
-  countEl.textContent = count;
-  countEl.style.opacity = '1';
-  countEl.style.transform = 'translate(-50%,-50%) scale(1.2)';
-  setTimeout(() => { countEl.style.transform = 'translate(-50%,-50%) scale(1)'; }, 100);
-
-  const interval = setInterval(() => {
-    count--;
-    if (count > 0) {
-      countEl.textContent = count;
-      countEl.style.transform = 'translate(-50%,-50%) scale(1.2)';
-      setTimeout(() => { countEl.style.transform = 'translate(-50%,-50%) scale(1)'; }, 100);
-    } else {
-      countEl.textContent = 'GO!';
-      countEl.style.color = '#44ff88';
-      countEl.style.transform = 'translate(-50%,-50%) scale(1.4)';
-      setTimeout(() => {
-        countEl.style.opacity = '0';
-        countEl.style.color = '#fff';
-      }, 400);
-      clearInterval(interval);
-      gamePaused = false; // unfreeze
-      if (onDone) onDone();
-    }
-  }, 1000);
-}
-
-socket.on("pvp:start", ({
-  spawn,
-  fullRematch
-} = {}) => {
-
-  // reset scores ONLY after full rematch
-  if (fullRematch) {
-
-    pvpMyScore = 0;
-    pvpOppScore = 0;
-
-    updatePVPScoreHUD();
-  }
-  // Handles both initial match start and round respawn
-  hidePVPOverlay();
-  state.gameOver = false;
-
-  // Teleport self to assigned spawn
-  if (spawn) {
-    camera.position.set(spawn.x, spawn.y, spawn.z);
-    state.yaw   = spawn.yaw || 0;
-    state.pitch = 0;
-    state.velocity = { x: 0, y: 0, z: 0 };
-    // Apply rotation immediately so player faces opponent during countdown
-    camera.rotation.order = 'YXZ';
-    camera.rotation.y = state.yaw;
-    camera.rotation.x = 0;
-  }
-
-  // Reset remote player models to their spawns
-  for (const rp of Object.values(remotePlayers)) {
-    rp.dead = false;
-    rp.hp = 100; rp.shield = 100;
-    rp.mesh.rotation.z = 0;
-    rp.x = rp.tx; rp.y = rp.ty; rp.z = rp.tz;
-    rp.mesh.position.set(rp.x, rp.y - PLAYER_HEIGHT, rp.z);
-    updateRemoteHPBar(rp);
-  }
-  updateOppHPBar(100);
-
-  // Reset self HP/shield
-  state.playerHP     = SETTINGS.PLAYER_HP;
-  state.playerShield = SETTINGS.PLAYER_SHIELD;
-  updateHealthUI();
-  document.getElementById('low-health-vignette').style.opacity = '0';
-
-  // Reset heal charges each round
-  resetHealCharges();
-
-  // Show score HUD
-  updatePVPScoreHUD();
-
-  // 3-second countdown before players can move
-  if (!document.pointerLockElement) canvas.requestPointerLock();
-  showPVPCountdown(() => {
-    setPVPStatus('⚔ PVP', '#44aaff');
-  });
-  setPVPStatus('GET READY', '#ffcc00');
-});
-
-socket.on("pvp:opponentMoved", ({ id, x, y, z, yaw, pitch }) => {
-  const rp = remotePlayers[id];
-  if (!rp) return;
-  rp.tx = x; rp.ty = y; rp.tz = z;
-  rp.tyaw = yaw; rp.tpitch = pitch;
-});
-
-socket.on("pvp:hit", ({ shooterId, damage, headshot, hp, shield }) => {
-  // Server is authoritative — apply its values directly
-  state.playerHP     = Math.max(0, hp);
-  state.playerShield = Math.max(0, shield);
-  updateHealthUI();
-  triggerHitFlash();
-  Audio.playerHit();
-  // Cancel healing if hit
-  cancelHealChannel();
-
-  // Low-health vignette
-  const hpPct = state.playerHP / SETTINGS.PLAYER_HP;
-  const vignette = document.getElementById('low-health-vignette');
-  if (hpPct < 0.35) {
-    const intensity = (0.35 - hpPct) / 0.35;
-    vignette.style.opacity = (intensity * 0.85).toFixed(2);
-    vignette.style.background = `radial-gradient(ellipse at center, transparent 30%, rgba(200,0,0,${(intensity * 0.6).toFixed(2)}) 100%)`;
-  } else {
-    vignette.style.opacity = '0';
-  }
-
-  if (state.playerHP <= 0) {
-    // Server will send pvp:playerDied — just freeze input
-    state.gameOver = true;
-  }
-});
-
-socket.on("pvp:hitConfirm", ({ targetId, headshot, hp, shield }) => {
-  // Our shot connected
-  showHitmarker(headshot);
-  if (headshot) Audio.headshot(); else Audio.hit();
-  const rp = remotePlayers[targetId];
-  if (rp) {
-    // Calculate actual damage dealt from HP/shield difference
-    const prevTotal = rp.hp + (rp.shield || 0);
-    const newTotal  = hp + (shield || 0);
-    const actualDmg = Math.max(1, prevTotal - newTotal);
-    rp.hp = hp;
-    rp.shield = shield || 0;
-    updateRemoteHPBar(rp);
-    updateOppHPBar(hp);
-    const hitType = (shield > 0) ? 'shield' : (headshot ? 'headshot' : 'normal');
-    spawnDamageNumberPVP({ hpBg: rp.hpBg }, actualDmg, hitType);
-  }
-});
-
-// ── PVP Score System — First to 5 wins ───────────────────────────────────
-let pvpMyScore  = 0;
-let pvpOppScore = 0;
-const PVP_WIN_SCORE = 5;
-
-function updatePVPScoreHUD() {
-  ensurePVPHud();
-  let scoreEl = document.getElementById('pvp-score-hud');
-  if (!scoreEl) {
-    scoreEl = document.createElement('div');
-    scoreEl.id = 'pvp-score-hud';
-    scoreEl.style.cssText = `
-      position:fixed; top:50px; left:50%; transform:translateX(-50%);
-      display:flex; align-items:center; gap:20px;
-      font-family:'Courier New',monospace; pointer-events:none; z-index:60;
-    `;
-    document.body.appendChild(scoreEl);
-  }
-  scoreEl.innerHTML = `
-    <div style="text-align:center;">
-      <div style="font-size:28px;font-weight:bold;color:#44ff88;">${pvpMyScore}</div>
-      <div style="font-size:8px;letter-spacing:2px;color:rgba(255,255,255,0.4);">YOU</div>
-    </div>
-    <div style="font-size:14px;color:rgba(255,255,255,0.3);letter-spacing:4px;">—</div>
-    <div style="text-align:center;">
-      <div style="font-size:28px;font-weight:bold;color:#ff4444;">${pvpOppScore}</div>
-      <div style="font-size:8px;letter-spacing:2px;color:rgba(255,255,255,0.4);">OPP</div>
-    </div>
-  `;
-  scoreEl.style.display = 'flex';
-}
-
-function showRoundResult(text, color) {
-  let el = document.getElementById('pvp-round-msg');
-  if (!el) {
-    el = document.createElement('div');
-    el.id = 'pvp-round-msg';
-    el.style.cssText = `
-      position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
-      font-family:'Courier New',monospace; font-size:36px; font-weight:bold;
-      letter-spacing:8px; text-transform:uppercase; pointer-events:none; z-index:100;
-      text-shadow:0 0 20px currentColor; opacity:0; transition:opacity 0.3s;
-    `;
-    document.body.appendChild(el);
-  }
-  el.textContent = text;
-  el.style.color = color;
-  el.style.opacity = '1';
-  setTimeout(() => { el.style.opacity = '0'; }, 1800);
-}
-
-let _lastDeathProcessed = null; // guard against duplicate pvp:playerDied events
-let _lastDeathTime = 0;
-
-socket.on("pvp:playerDied", ({ deadId, killerId }) => {
-  // Deduplicate — ignore same dead/killer pair within 2 seconds
-  const deathKey = `${deadId}-${killerId}`;
-  const now = Date.now();
-  if (_lastDeathProcessed === deathKey && now - _lastDeathTime < 2000) return;
-  _lastDeathProcessed = deathKey;
-  _lastDeathTime = now;
-
-  const isSelf   = deadId   === socket.id;
-  const isKiller = killerId === socket.id;
-
-  if (remotePlayers[deadId]) {
-    remotePlayers[deadId].dead = true;
-    const rp = remotePlayers[deadId];
-    rp.mesh.rotation.z = Math.PI / 2;
-    rp.mesh.position.y -= 0.6;
-  }
-
-  // Update scores
-  if (isKiller) {
-    pvpMyScore++;
-    Audio.kill();
-    Audio.points();
-    const deadName = remotePlayers[deadId] ? remotePlayers[deadId].playerName || 'Opponent' : 'Opponent';
-    addKillFeed(`💀 ${playerName} killed ${deadName}`);
-    showRoundResult('+1 KILL', '#44ff88');
-    // Report kill to Convex
-    try {
-      const convex = window.__arenaConvex;
-      const api = window.__arenaApi;
-      if (convex && api) {
-        convex.mutation(api.stats.reportGameStats, { kills: 1, deaths: 0 })
-          .catch(e => console.warn('stats sync failed:', e?.message));
-      }
-    } catch (e) { console.warn('stats report error:', e?.message); }
-  } else if (isSelf) {
-    pvpOppScore++;
-    Audio.playerHit();
-    const killerName = remotePlayers[killerId] ? remotePlayers[killerId].playerName || 'Opponent' : 'Opponent';
-    addKillFeed(`☠ ${killerName} killed ${playerName}`);
-    showRoundResult('YOU DIED', '#ff4444');
-    state.gameOver = true;
-    // Report death to Convex
-    try {
-      const convex = window.__arenaConvex;
-      const api = window.__arenaApi;
-      if (convex && api) {
-        convex.mutation(api.stats.reportGameStats, { kills: 0, deaths: 1 })
-          .catch(e => console.warn('stats sync failed:', e?.message));
-      }
-    } catch (e) { console.warn('stats report error:', e?.message); }
-  }
-  updatePVPScoreHUD();
-
-  // Check if match is over (first to 5)
-  if (pvpMyScore >= PVP_WIN_SCORE || pvpOppScore >= PVP_WIN_SCORE) {
-    const won = pvpMyScore >= PVP_WIN_SCORE;
-    state.gameOver = true;
-    // Hide pause menu if it was showing
-    gamePaused = false;
-    document.getElementById('pause-overlay').style.display = 'none';
-    const resultHtml = won
-      ? `<div style="font-size:48px;letter-spacing:8px;color:#ffcc00;margin-bottom:8px;">VICTORY</div>
-         <div style="font-size:14px;letter-spacing:2px;color:#fff;margin-bottom:6px;">${playerName} WINS</div>
-         <div style="font-size:16px;letter-spacing:3px;color:#888;">FINAL SCORE: ${pvpMyScore} — ${pvpOppScore}</div>`
-      : `<div style="font-size:48px;letter-spacing:8px;color:#ff3333;margin-bottom:8px;">DEFEATED</div>
-         <div style="font-size:14px;letter-spacing:2px;color:#fff;margin-bottom:6px;">${playerName} LOST</div>
-         <div style="font-size:16px;letter-spacing:3px;color:#888;">FINAL SCORE: ${pvpMyScore} — ${pvpOppScore}</div>`;
-
-    // Report match result (win or loss) to Convex
-    try {
-      const convex = window.__arenaConvex;
-      const api = window.__arenaApi;
-      if (convex && api) {
-        convex.mutation(api.stats.reportGameStats, {
-          kills: 0, deaths: 0,
-          wins: won ? 1 : 0,
-          losses: won ? 0 : 1,
-          matches: 1,
-        }).catch(e => console.warn('stats sync failed:', e?.message));
-      }
-    } catch (e) { console.warn('stats report error:', e?.message); }
-
-    document.exitPointerLock();
-    setTimeout(() => {
-      showPVPOverlay(resultHtml, [
-        { label: 'Rematch', fn: () => {
-            pvpMyScore = 0; pvpOppScore = 0;
-            updatePVPScoreHUD();
-            socket.emit("pvp:rematch");
-            showPVPOverlay(`<div style="font-size:20px;letter-spacing:4px;color:#888;font-family:'Courier New',monospace;">WAITING FOR REMATCH...</div>`);
-          }
-        },
-        { label: 'Main Menu', fn: () => {
-            hidePVPOverlay();
-            for (const id of Object.keys(remotePlayers)) removeRemotePlayer(id);
-            if (pvpHudEl) pvpHudEl.style.display = 'none';
-            const scoreHud = document.getElementById('pvp-score-hud');
-            if (scoreHud) scoreHud.style.display = 'none';
-            document.exitPointerLock();
-            const _c = window.__arenaConvex, _a = window.__arenaApi;
-            if (_c && _a) _c.mutation(_a.parties.clearMatch, {}).catch(() => {});
-            window.location.href = '/menu/';
-          }
-        },
-      ]);
-    }, 1500);
-  } else {
-    // Round not over — only the killer triggers the next round to avoid double-emit
-    if (isKiller) {
-      setTimeout(() => {
-        socket.emit("pvp:rematch");
-      }, 2000);
-    }
-  }
-});
-
-// ── Opponent requested rematch — show notification ───────────────────────
-socket.on("pvp:rematchRequest", ({ id }) => {
-  setPVPStatus('OPPONENT WANTS REMATCH', '#ffcc00');
-  // Update the overlay if it's showing
-  const overlay = document.getElementById('pvp-round-msg');
-  if (overlay) {
-    overlay.textContent = 'OPPONENT READY';
-    overlay.style.color = '#ffcc00';
-    overlay.style.opacity = '1';
-    setTimeout(() => { overlay.style.opacity = '0'; }, 2000);
-  }
-});
-
-socket.on("pvp:opponentLeft", ({ id }) => {
-  removeRemotePlayer(id);
-  setPVPStatus('OPPONENT DISCONNECTED', '#ff4444');
-  showPVPOverlay(`
-    <div style="font-size:28px;letter-spacing:6px;color:#ff4444;margin-bottom:12px;">OPPONENT LEFT</div>
-    <div style="font-size:13px;letter-spacing:3px;color:#888;">THE OTHER PLAYER DISCONNECTED</div>
-  `, [
-    { label: 'Main Menu', fn: () => {
-        hidePVPOverlay();
-        document.exitPointerLock();
-        const _c = window.__arenaConvex, _a = window.__arenaApi;
-        if (_c && _a) _c.mutation(_a.parties.clearMatch, {}).catch(() => {});
-        window.location.href = '/menu/';
-      }
-    },
-  ]);
-});
-
-// ── PVP shoot integration (called once per shot from shoot()) ────────────
-function pvpShoot() {
-
-  if (!pvpMode) return;
-
-  raycaster.setFromCamera(
-    new THREE.Vector2(0, 0),
-    camera
-  );
-
-  const baseDir =
-    raycaster.ray.direction.clone().normalize();
-
-  const pellets = currentWeapon.pellets;
-
-  const adsMult =
-    state.mouseButtons[2]
-      ? SPREAD_ADS_MULT
-      : 1.0;
-
-  // Sniper: perfectly accurate when scoped (ADS > 0.85), huge spread when hip-firing
-  const spread =
-    (currentWeapon.name === 'sniper' && adsProgress > 0.85)
-      ? 0
-      : currentWeapon.spread +
-        currentSpread * 0.06 * adsMult;
-
-  for (let p = 0; p < pellets; p++) {
-
-    const d = baseDir.clone();
-
-    if (spread > 0) {
-
-      d.x += (Math.random() - 0.5) * spread;
-      d.y += (Math.random() - 0.5) * spread * 0.5;
-      d.z += (Math.random() - 0.5) * spread;
-
-      d.normalize();
-    }
-
-    const hit = checkPVPHit(
-      camera.position,
-      d
-    );
-
-    if (hit) {
-
-      let dmg = currentWeapon.damage;
-
-      // shotgun falloff
-      if (currentWeapon.name === "shotgun") {
-
-        const dist =
-          camera.position.distanceTo(hit.point);
-
-        if (dist > 35) dmg = 0;
-        else if (dist > 25)
-          dmg = Math.round(dmg * 0.25);
-        else if (dist > 10)
-          dmg = Math.round(dmg * 0.45);
-      }
-
-      if (dmg > 0) {
-
-        socket.emit("pvp:hit", {
-          targetId: hit.id,
-          damage: dmg,
-          headshot: hit.headshot
-        });
-      }
-
-      spawnSpark(hit.point);
-    }
-  }
-}
-
 // ─────────────────────────────────────────────
 //  GAME STATE
 // ─────────────────────────────────────────────
 const SETTINGS = {
   ARENA_SIZE: 80,
   WALL_H: 6,
-  PLAYER_SPEED: 6,
+  PLAYER_SPEED: 8,
   SPRINT_MULT: 1.7,
   PLAYER_HP: 100,
   PLAYER_SHIELD: 100,
@@ -2099,18 +1429,18 @@ let state = {
 const Audio = (() => {
   let ctx = null;
   let masterGain = null;
-  const samples = {};
+    const samples = {};
 
-function loadSample(name, path) {
+  function loadSample(name, path) {
 
-  const audio = new window.Audio(path);
+    const audio = new window.Audio(path);
 
-  audio.preload = "auto";
+    audio.preload = "auto";
 
-  samples[name] = audio;
-}
+    samples[name] = audio;
+  }
 
-function playSample(name, volume = 1.0) {
+  function playSample(name, volume = 1.0) {
 
   const s = samples[name];
 
@@ -2130,21 +1460,21 @@ function playSample(name, volume = 1.0) {
   });
 }
 
+
+
   function getCtx() {
     if (!ctx) {
       ctx = new (window.AudioContext || window.webkitAudioContext)();
       masterGain = ctx.createGain();
       masterGain.gain.value = 0.7;
       masterGain.connect(ctx.destination);
-
-    loadSample("rifle", "/audio/rifle.wav");
+     loadSample("rifle", "/audio/rifle.wav");
 
 loadSample("shotgun", "/audio/shotgun.mp3");
 
 loadSample("shotty_reload", "/audio/shotty_reload.wav");
 
 loadSample("ar_reload", "/audio/ar_reload.wav");
-
     }
     if (ctx.state === 'suspended') ctx.resume();
     return ctx;
@@ -2196,18 +1526,15 @@ loadSample("ar_reload", "/audio/ar_reload.wav");
 
   // ── Individual sounds ──────────────────────
 
-  function playRifle() {
+ function playRifle() {
 
   playSample("rifle", 0.7);
 }
-  
 
-  
-   function playShotgun() {
+  function playShotgun() {
 
   playSample("shotgun", 0.9);
 }
-  
 
   function playHit() {
     const c = getCtx(); const t = c.currentTime;
@@ -2231,7 +1558,7 @@ loadSample("ar_reload", "/audio/ar_reload.wav");
   }
 
   function playReloadStart() {
-    
+
   if (currentWeapon.name === "shotgun") {
 
     playSample("shotty_reload", 0.8);
@@ -2240,8 +1567,7 @@ loadSample("ar_reload", "/audio/ar_reload.wav");
 
     playSample("ar_reload", 0.8);
   }
-
-  }
+}
 
   function playReloadFinish() {
     const c = getCtx(); const t = c.currentTime;
@@ -2432,7 +1758,18 @@ loadSample("ar_reload", "/audio/ar_reload.wav");
     osc('sine', 528, t + 0.06, t + 0.16, 0.08, 0.001);
   }
 
+  function unlock() {
+
+  const c = getCtx();
+
+  if (c.state === "suspended") {
+
+    c.resume();
+  }
+}
+
   return {
+    unlock,
     rifle:           playRifle,
     shotgun:         playShotgun,
     hit:             playHit,
@@ -2478,7 +1815,7 @@ scene.fog = new THREE.FogExp2(0x080810, 0.014);
 scene.background = new THREE.Color(0x080810);
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 120);
-camera.position.set(0, 2.3, 0);
+camera.position.set(0, 1.7, 0);
 
 // ─────────────────────────────────────────────
 //  LIGHTING
@@ -2518,14 +1855,71 @@ const H = SETTINGS.WALL_H;
 const collidables = [];
 
 function makeBox(w, h, d, x, y, z, mat) {
+
   const g = new THREE.BoxGeometry(w, h, d);
+
   const m = new THREE.Mesh(g, mat);
+
   m.position.set(x, y, z);
+
   m.castShadow = true;
   m.receiveShadow = true;
+
   scene.add(m);
-  collidables.push({ minX: x-w/2, maxX: x+w/2, minZ: z-d/2, maxZ: z+d/2, minY: y-h/2, maxY: y+h/2 });
+
+  collidables.push({
+    mesh: m,
+
+    width: w,
+    height: h,
+    depth: d,
+
+    minX: x - w / 2,
+    maxX: x + w / 2,
+
+    minZ: z - d / 2,
+    maxZ: z + d / 2,
+
+    minY: y - h / 2,
+    maxY: y + h / 2
+  });
+
   return m;
+} 
+
+function getSafeSpawnPosition() {
+
+  for (let tries = 0; tries < 100; tries++) {
+
+    const angle = Math.random() * Math.PI * 2;
+    const r = 8 + Math.random() * 12;
+
+    const x = Math.cos(angle) * r;
+    const z = Math.sin(angle) * r;
+
+    let blocked = false;
+
+    for (const c of collidables) {
+
+      if (
+        x > c.minX - 2 &&
+        x < c.maxX + 2 &&
+        z > c.minZ - 2 &&
+        z < c.maxZ + 2
+      ) {
+
+        blocked = true;
+        break;
+      }
+    }
+
+    if (!blocked) {
+
+      return { x, z };
+    }
+  }
+
+  return { x: 0, z: 0 };
 }
 
 const floorMat = new THREE.MeshLambertMaterial({ color: 0x06060e });
@@ -2974,6 +2368,7 @@ const SHIELD_ZONE_RADIUS = 4.0;
 const SHIELD_ZONE_REGEN  = 3;
 
 const szGroup = new THREE.Group();
+szGroup.visible = false; // Hidden in TDM
 scene.add(szGroup);
 
 // Flat hex floor fill
@@ -3045,76 +2440,115 @@ document.getElementById('ui').appendChild(szHudEl);
 let szRegenAccum = 0;
 
 // ─────────────────────────────────────────────
-//  CAPTURE ZONE SYSTEM (disabled in PVP)
+//  CAPTURE ZONE SYSTEM
 // ─────────────────────────────────────────────
-const CAPTURE_ZONE_RADIUS = 0;
-const CAPTURE_DMG_REDUCTION = 0;
+const CAPTURE_ZONE_RADIUS   = 4;
+const CAPTURE_TIME          = 15;      // seconds to capture
+const CAPTURE_SHIELD_REGEN  = 2;       // shield/sec per captured zone
+const CAPTURE_DMG_REDUCTION = 0.25;    // damage reduction per zone (max 3 zones = 0.75)
+const CAPTURE_HP_BONUS      = 20;      // HP/shield max increase per zone
+const BASE_PLAYER_HP        = 100;     // base values (never modified)
+const BASE_PLAYER_SHIELD    = 100;
+
+const CAPTURE_ZONE_POSITIONS = [
+  { x: -28, z: 0 },
+  { x:  28, z: 0 },
+  { x:   0, z: -28 },
+  { x:   0, z:  28 },
+];
+
+// Build 3D objects for each capture zone (same style as shield zone)
+const captureZones = CAPTURE_ZONE_POSITIONS.map((pos, idx) => {
+  const group = new THREE.Group();
+  group.position.set(pos.x, 0, pos.z);
+  // Don't add capture zones to scene in TDM mode
+  group.visible = false;
+
+  // Flat hex floor fill
+  const floorGeo = new THREE.CylinderGeometry(CAPTURE_ZONE_RADIUS, CAPTURE_ZONE_RADIUS, 0.02, 6);
+  const floorMat = new THREE.MeshBasicMaterial({ color: 0x444444, transparent: true, opacity: 0.12 });
+  const floorMesh = new THREE.Mesh(floorGeo, floorMat);
+  floorMesh.position.y = 0.01;
+  group.add(floorMesh);
+
+  // Outer border ring
+  const torusGeo = new THREE.TorusGeometry(CAPTURE_ZONE_RADIUS, 0.07, 6, 6);
+  const torusMat = new THREE.MeshBasicMaterial({ color: 0x666666, transparent: true, opacity: 0.9 });
+  const torusMesh = new THREE.Mesh(torusGeo, torusMat);
+  torusMesh.rotation.x = Math.PI / 2;
+  torusMesh.position.y = 0.04;
+  group.add(torusMesh);
+
+  // Inner border ring
+  const innerRingGeo = new THREE.TorusGeometry(CAPTURE_ZONE_RADIUS * 0.6, 0.04, 6, 6);
+  const innerRingMat = new THREE.MeshBasicMaterial({ color: 0x888888, transparent: true, opacity: 0.6 });
+  const innerRing = new THREE.Mesh(innerRingGeo, innerRingMat);
+  innerRing.rotation.x = Math.PI / 2;
+  innerRing.position.y = 0.04;
+  group.add(innerRing);
+
+  // 6 radial accent lines on the floor
+  const lineMat = new THREE.MeshBasicMaterial({ color: 0x555555, transparent: true, opacity: 0.4 });
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    const lineGeo = new THREE.PlaneGeometry(0.06, CAPTURE_ZONE_RADIUS);
+    const line = new THREE.Mesh(lineGeo, lineMat);
+    line.rotation.x = -Math.PI / 2;
+    line.rotation.z = a;
+    line.position.set(Math.cos(a) * CAPTURE_ZONE_RADIUS / 2, 0.03, Math.sin(a) * CAPTURE_ZONE_RADIUS / 2);
+    group.add(line);
+  }
+
+  // 6 corner diamonds at hex vertices
+  const pillarMats = [];
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    const pGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.5, 4);
+    const pMat = new THREE.MeshBasicMaterial({ color: 0x666666, transparent: true, opacity: 0.85 });
+    const pMesh = new THREE.Mesh(pGeo, pMat);
+    pMesh.rotation.y = Math.PI / 4;
+    pMesh.position.set(Math.cos(a) * CAPTURE_ZONE_RADIUS, 0.25, Math.sin(a) * CAPTURE_ZONE_RADIUS);
+    group.add(pMesh);
+    pillarMats.push(pMat);
+  }
+
+  return {
+    pos,
+    group,
+    floorMat,
+    torusMat,
+    pillarMats,
+    innerRing,
+    captured: false,
+    captureProgress: 0,
+    captureAccum: 0,
+  };
+});
+
+// HUD refs
+const _czProgressWrap  = document.getElementById('capture-progress-wrap');
+const _czProgressLabel = document.getElementById('capture-progress-label');
+const _czProgressFill  = document.getElementById('capture-progress-bar-fill');
+const _czSquares       = [0,1,2,3].map(i => document.getElementById('zone-sq-' + i));
+const _czFills         = [0,1,2,3].map(i => document.getElementById('zone-fill-' + i));
+
+// Track how many zones are captured (used by damagePlayer & regen)
 let capturedZoneCount = 0;
-const captureZones = [];
-function resetCaptureZones() {}
-function updateCaptureZones() {}
+let czShieldRegenAccum = 0;
+
+function resetCaptureZones() {
+  capturedZoneCount = 0;
+  czShieldRegenAccum = 0;
+}
+
+function updateCaptureZones(dt) {
+  // Disabled in TDM mode
+  return;
+}
 
 function updateShieldZone(dt) {
-  const t = performance.now() / 1000;
-
-  // Slowly counter-rotate the two border rings
-  szBorder.rotation.z  += dt * 0.4;
-  szBorder2.rotation.z -= dt * 0.6;
-
-  // Pulse floor fill
-  szFloorMat.opacity = 0.08 + 0.06 * Math.sin(t * 1.8);
-
-  // Pulse corner diamonds
-  szCorners.forEach(c => {
-    c.mat.opacity = 0.6 + 0.35 * Math.abs(Math.sin(t * 2.0 + c.phase));
-  });
-
-  // Player / contested check
-  const dx = camera.position.x, dz = camera.position.z;
-  const inZone = Math.sqrt(dx*dx + dz*dz) < SHIELD_ZONE_RADIUS;
-  const contested = state.bots.some(b => {
-    if (b.dead) return false;
-    const bx = b.mesh.position.x, bz = b.mesh.position.z;
-    return Math.sqrt(bx*bx + bz*bz) < SHIELD_ZONE_RADIUS;
-  });
-  const zoneActive = inZone && !contested;
-
-  // Color feedback
-  const col = contested ? 0xff3333 : (inZone ? 0x88eeff : 0x44aaff);
-  szBorderMat.color.setHex(col);
-  szBorder2Mat.color.setHex(contested ? 0xff6666 : 0xaaddff);
-  szFloorMat.color.setHex(contested ? 0x440000 : 0x0044cc);
-
-  // Brighter pulse when healing
-  if (zoneActive) {
-    szFloorMat.opacity = 0.16 + 0.10 * Math.sin(t * 4);
-    szBorderMat.opacity = 1.0;
-  } else {
-    szBorderMat.opacity = contested ? 1.0 : 0.9;
-  }
-
-  // HUD
-  szHudEl.style.display = inZone ? 'flex' : 'none';
-  szHudEl.innerHTML = contested && inZone
-    ? '⚠️ ZONE CONTESTED — REGEN BLOCKED'
-    : '🛡 SHIELD ZONE — REGENERATING';
-  szHudEl.style.borderColor = contested ? 'rgba(255,80,80,0.7)' : 'rgba(68,170,255,0.7)';
-  szHudEl.style.color       = contested ? '#ff8888' : '#88ddff';
-
-  // Regen
-  if (zoneActive && state.running && !state.gameOver) {
-    szRegenAccum += SHIELD_ZONE_REGEN * dt;
-    if (szRegenAccum >= 1) {
-      const regen = Math.floor(szRegenAccum);
-      szRegenAccum -= regen;
-      state.playerShield = Math.min(SETTINGS.PLAYER_SHIELD, state.playerShield + regen);
-      state.playerHP     = Math.min(SETTINGS.PLAYER_HP,     state.playerHP     + regen);
-      updateHealthUI();
-      Audio.shieldZoneRegen();
-    }
-  } else {
-    szRegenAccum = 0;
-  }
+  // Disabled in TDM mode
+  return;
 }
 
 function updateArenaAnims(t) {
@@ -3168,11 +2602,10 @@ const ENEMY_TYPES = {
 };
 
 function spawnBot(index) {
-  const angle = Math.random() * Math.PI * 2;
-  const r = 8 + Math.random() * 12;
-  const px = Math.cos(angle) * r;
-  const pz = Math.sin(angle) * r;
+ const spawn = getSafeSpawnPosition();
 
+const px = spawn.x;
+const pz = spawn.z;
   const color      = BOT_COLORS[index % BOT_COLORS.length];
   const armorColor = BOT_ARMOR_COL[index % BOT_ARMOR_COL.length];
 
@@ -3371,10 +2804,10 @@ function spawnBot(index) {
 
 function spawnEnemy(typeName, index) {
   const cfg = ENEMY_TYPES[typeName];
-  const angle = Math.random() * Math.PI * 2;
-  const r = 8 + Math.random() * 12;
-  const px = Math.cos(angle) * r;
-  const pz = Math.sin(angle) * r;
+  const spawn = getSafeSpawnPosition();
+
+const px = spawn.x;
+const pz = spawn.z;
 
   const isTank   = typeName === 'tank';
   const isRusher = typeName === 'rusher';
@@ -3629,7 +3062,7 @@ function startDeathAnim(bot) {
   bot.startRot = bot.mesh.rotation.clone();
 
   const pos = bot.mesh.position.clone().add(new THREE.Vector3(0, 0.8, 0));
-  const debrisColor = bot.torso.material.color.getHex();
+  const debrisColor = (bot.torso && bot.torso.material) ? bot.torso.material.color.getHex() : 0xff2222;
 
   // Debris chunks — tanks get more, bigger, faster
   const chunkCount  = isTank ? 32 : 12;
@@ -3803,6 +3236,7 @@ const WEAPONS = {
   },
 };
 
+// Loadout: which weapons go in slot 1 and slot 2
 const _loadoutSlot1 = localStorage.getItem('arenaLoadoutSlot1') || 'rifle';
 const _loadoutSlot2 = localStorage.getItem('arenaLoadoutSlot2') || 'shotgun';
 const LOADOUT_SLOT1 = WEAPONS[_loadoutSlot1] ? _loadoutSlot1 : 'rifle';
@@ -3828,6 +3262,7 @@ function switchWeapon(weaponKey) {
   document.getElementById('crosshair').style.opacity    = (weaponKey === 'rifle' || weaponKey === 'smg' || weaponKey === 'sniper') ? '1' : '0';
   document.getElementById('crosshair-sg').style.opacity = weaponKey === 'shotgun' ? '1' : '0';
   document.getElementById('crosshair-ads').style.opacity = '0';
+  // Hide scope overlay when switching away from sniper
   document.getElementById('sniper-scope').style.display = 'none';
 
   document.getElementById('inv-slot-1').classList.toggle('active', weaponKey === LOADOUT_SLOT1);
@@ -4059,30 +3494,77 @@ smgGroup.position.set(0.22, -0.22, -0.44);
 smgGroup.visible = false;
 camera.add(smgGroup);
 
-// ── SNIPER VIEWMODEL ─────────────────────────────────
+// ─────────────────────────────────────────────
+//  SNIPER VIEWMODEL
+// ─────────────────────────────────────────────
 const sniperGroup = new THREE.Group();
 const snpBody  = new THREE.MeshLambertMaterial({ color: 0x2a2a2a });
 const snpDark  = new THREE.MeshLambertMaterial({ color: 0x111111 });
 const snpWood  = new THREE.MeshLambertMaterial({ color: 0x3d2b1a });
 const snpGlow  = new THREE.MeshBasicMaterial({ color: 0xffcc00 });
+
+// Long receiver
 const snpReceiver = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.08, 0.55), snpBody);
-snpReceiver.position.set(0, 0, -0.05); sniperGroup.add(snpReceiver);
+snpReceiver.position.set(0, 0, -0.05);
+sniperGroup.add(snpReceiver);
+
+// Long barrel
 const snpBarrel = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.50, 10), snpDark);
-snpBarrel.rotation.x = Math.PI/2; snpBarrel.position.set(0, 0.03, -0.50); sniperGroup.add(snpBarrel);
+snpBarrel.rotation.x = Math.PI / 2;
+snpBarrel.position.set(0, 0.03, -0.50);
+sniperGroup.add(snpBarrel);
+
+// Muzzle brake
 const snpMuzzle = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.018, 0.06, 8), snpBody);
-snpMuzzle.rotation.x = Math.PI/2; snpMuzzle.position.set(0, 0.03, -0.76); sniperGroup.add(snpMuzzle);
+snpMuzzle.rotation.x = Math.PI / 2;
+snpMuzzle.position.set(0, 0.03, -0.76);
+sniperGroup.add(snpMuzzle);
+
+// Scope body
 const snpScope = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.18, 10), snpDark);
-snpScope.rotation.x = Math.PI/2; snpScope.position.set(0, 0.075, -0.08); sniperGroup.add(snpScope);
+snpScope.rotation.x = Math.PI / 2;
+snpScope.position.set(0, 0.075, -0.08);
+sniperGroup.add(snpScope);
+// Scope lens (front)
 const snpLens = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.01, 10), snpGlow);
-snpLens.rotation.x = Math.PI/2; snpLens.position.set(0, 0.075, -0.17); sniperGroup.add(snpLens);
+snpLens.rotation.x = Math.PI / 2;
+snpLens.position.set(0, 0.075, -0.17);
+sniperGroup.add(snpLens);
+// Scope mount
 const snpMount = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.02, 0.10), snpBody);
-snpMount.position.set(0, 0.055, -0.08); sniperGroup.add(snpMount);
+snpMount.position.set(0, 0.055, -0.08);
+sniperGroup.add(snpMount);
+
+// Stock (wooden)
 const snpStock = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.07, 0.22), snpWood);
-snpStock.position.set(0, -0.01, 0.30); sniperGroup.add(snpStock);
+snpStock.position.set(0, -0.01, 0.30);
+sniperGroup.add(snpStock);
+// Cheek rest
+const snpCheek = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.025, 0.14), snpWood);
+snpCheek.position.set(0, 0.03, 0.28);
+sniperGroup.add(snpCheek);
+
+// Magazine
 const snpMag = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.08, 0.04), snpDark);
-snpMag.position.set(0, -0.08, 0.02); sniperGroup.add(snpMag);
+snpMag.position.set(0, -0.08, 0.02);
+sniperGroup.add(snpMag);
+
+// Grip
 const snpGrip = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.09, 0.03), snpDark);
-snpGrip.position.set(0, -0.08, 0.12); snpGrip.rotation.x = -0.2; sniperGroup.add(snpGrip);
+snpGrip.position.set(0, -0.08, 0.12);
+snpGrip.rotation.x = -0.2;
+sniperGroup.add(snpGrip);
+
+// Bipod legs (folded)
+const snpBipod1 = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.06, 0.01), snpBody);
+snpBipod1.position.set(-0.02, -0.06, -0.30);
+snpBipod1.rotation.x = 0.3;
+sniperGroup.add(snpBipod1);
+const snpBipod2 = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.06, 0.01), snpBody);
+snpBipod2.position.set(0.02, -0.06, -0.30);
+snpBipod2.rotation.x = 0.3;
+sniperGroup.add(snpBipod2);
+
 sniperGroup.position.set(0.22, -0.24, -0.50);
 sniperGroup.visible = false;
 camera.add(sniperGroup);
@@ -4123,10 +3605,11 @@ function updateGunAnim(dt) {
   camera.updateProjectionMatrix();
 
   if (currentWeapon.name === 'sniper') {
+    // Sniper: show scope overlay when fully ADS, hide all crosshairs
     const scopeEl = document.getElementById('sniper-scope');
     if (adsProgress > 0.85) {
       scopeEl.style.display = 'block';
-      sniperGroup.visible = false;
+      sniperGroup.visible = false; // hide gun model when scoped
       document.getElementById('crosshair').style.opacity = '0';
       document.getElementById('crosshair-ads').style.opacity = '0';
     } else {
@@ -4142,6 +3625,7 @@ function updateGunAnim(dt) {
     document.getElementById('crosshair-ads').style.opacity = adsProgress;
     document.getElementById('crosshair-sg').style.opacity  = '0';
   } else {
+    // Shotgun: brackets shrink during ADS instead of disappearing
     document.getElementById('sniper-scope').style.display = 'none';
     document.getElementById('crosshair-sg').style.opacity  = '1';
     document.getElementById('crosshair-ads').style.opacity = '0';
@@ -4277,7 +3761,7 @@ function createMuzzleFlash() {
 }
 
 function shoot() {
-  if (state.reloading || state.gameOver || healChanneling) return;
+  if (state.reloading || state.gameOver) return;
   if (state.ammo <= 0) { Audio.emptyClick(); return; }
   // Fire rate limiting
   const now = performance.now();
@@ -4342,7 +3826,7 @@ function shoot() {
       d.normalize();
     }
     raycaster.set(camera.position, d);
-   const structureMeshes = [];
+    const structureMeshes = [];
 
 scene.traverse(obj => {
 
@@ -4366,14 +3850,16 @@ const hits = raycaster.intersectObjects(
       const isWallHit =
   structureMeshes.includes(hit.object) &&
   !threeObjs.includes(hit.object);
+
 if (isWallHit) {
 
   spawnSpark(hit.point);
 
-  continue;
+  return;
 }
       const target = targets.find(t => t.mesh === hit.object);
-      if (target && !target.bot.dead) {
+      if (target && !target.bot.dead && !target.bot.isAlly) {
+        const zoneDmgMult = 1;
         let baseDmg = currentWeapon.damage;
         // Shotgun damage falloff by distance
         if (currentWeapon.name === 'shotgun') {
@@ -4383,8 +3869,8 @@ if (isWallHit) {
           else if (dist > 10) { baseDmg = Math.round(baseDmg * 0.45); }
         }
         const dmg = target.head
-          ? Math.round(baseDmg * SETTINGS.HEADSHOT_MULT)
-          : baseDmg;
+          ? Math.round(baseDmg * SETTINGS.HEADSHOT_MULT * zoneDmgMult)
+          : Math.round(baseDmg * zoneDmgMult);
         damageBotBy(target.bot, dmg, target.head);
       }
       spawnSpark(hit.point);
@@ -4406,6 +3892,7 @@ function spawnSpark(pos) {
   scene.add(spark);
   state.muzzleFlashes.push(spark);
 }
+
 // ─────────────────────────────────────────────
 //  CAMERA RECOIL + SHAKE + SPREAD
 // ─────────────────────────────────────────────
@@ -4497,11 +3984,11 @@ function updateCrosshairSpread() {
 }
 
 function spawnDamageNumber(bot, dmg, headshot) {
-  // Project bot head position to screen
-  const worldPos = new THREE.Vector3();
-  bot.hpBg.getWorldPosition(worldPos);
-  worldPos.y += 0.3 + Math.random() * 0.25; // slight vertical jitter above HP bar
-  worldPos.x += (Math.random() - 0.5) * 0.4; // slight horizontal jitter
+  // Project bot position to screen — use mesh position + head height
+  const worldPos = bot.mesh.position.clone();
+  worldPos.y += 2.2; // above head
+  worldPos.y += Math.random() * 0.3;
+  worldPos.x += (Math.random() - 0.5) * 0.4;
 
   const projected = worldPos.clone().project(camera);
   // Only show if in front of camera
@@ -4520,51 +4007,22 @@ function spawnDamageNumber(bot, dmg, headshot) {
   setTimeout(() => el.remove(), 750);
 }
 
-// PVP damage numbers: blue = shield, white = health, red = headshot
-function spawnDamageNumberPVP(bot, dmg, hitType) {
-  const worldPos = new THREE.Vector3();
-  bot.hpBg.getWorldPosition(worldPos);
-  worldPos.y += 0.3 + Math.random() * 0.25;
-  worldPos.x += (Math.random() - 0.5) * 0.4;
-
-  const projected = worldPos.clone().project(camera);
-  if (projected.z > 1) return;
-
-  const sx = ( projected.x * 0.5 + 0.5) * window.innerWidth;
-  const sy = (-projected.y * 0.5 + 0.5) * window.innerHeight;
-
-  const el = document.createElement('div');
-  el.className = 'dmg-num normal';
-  el.style.left = sx + 'px';
-  el.style.top  = sy + 'px';
-  el.style.transform = 'translate(-50%, -50%)';
-
-  if (hitType === 'shield') {
-    el.style.color = '#44aaff';
-    el.style.textShadow = '0 0 8px #2288ff, 0 1px 3px rgba(0,0,0,0.9)';
-    el.style.fontSize = '14px';
-    el.textContent = dmg;
-  } else if (hitType === 'headshot') {
-    el.style.color = '#ff3333';
-    el.style.textShadow = '0 0 8px #ff0000, 0 1px 3px rgba(0,0,0,0.9)';
-    el.style.fontSize = '17px';
-    el.textContent = '💀 ' + dmg;
-  } else {
-    el.style.color = '#ffffff';
-    el.style.textShadow = '0 0 6px rgba(255,255,255,0.6), 0 1px 3px rgba(0,0,0,0.9)';
-    el.style.fontSize = '14px';
-    el.textContent = dmg;
-  }
-
-  document.body.appendChild(el);
-  setTimeout(() => el.remove(), 750);
-}
 function damageBotBy(bot, dmg, headshot) {
+  const totalDmg = dmg; // Store original damage for display
+  // TDM: shield absorbs damage first
+  if (window._tdmMode && bot.shield > 0) {
+    const absorbed = Math.min(bot.shield, dmg);
+    bot.shield -= absorbed;
+    dmg -= absorbed;
+    if (dmg <= 0) dmg = 0;
+  }
   bot.hp = Math.max(0, bot.hp - dmg);
   const hpRatio = bot.hp / bot.maxHp;
-  bot.hpFill.scale.x = Math.max(0, hpRatio);
-  const c = hpRatio > 0.5 ? 0x22ff44 : hpRatio > 0.25 ? 0xffcc00 : 0xff3300;
-  bot.hpFill.material.color.setHex(c);
+  if (bot.hpFill) {
+    bot.hpFill.scale.x = Math.max(0, hpRatio);
+    const c = hpRatio > 0.5 ? 0x22ff44 : hpRatio > 0.25 ? 0xffcc00 : 0xff3300;
+    bot.hpFill.material.color.setHex(c);
+  }
 
   bot.mesh.traverse(child => {
     if (child.isMesh && child.material && child.material.color
@@ -4584,7 +4042,7 @@ function damageBotBy(bot, dmg, headshot) {
   showHitmarker(headshot);
   applyRecoil(headshot ? 0.025 : 0.015);
   if (headshot) Audio.headshot(); else Audio.hit();
-  spawnDamageNumber(bot, dmg, headshot);
+  spawnDamageNumber(bot, totalDmg, headshot);
 
   if (bot.hp <= 0) killBot(bot, headshot);
 }
@@ -4908,8 +4366,62 @@ function saveHighScore() {
 function killBot(bot, headshot) {
   state.killCount++;
   onKillStreak();
-  if (state.killCount % 3 === 0) spawnShieldDrop(bot.mesh.position);
+  if (!window._tdmMode && state.killCount % 3 === 0) spawnShieldDrop(bot.mesh.position);
   removeBot(bot);
+
+  // TDM: score for the killing team and respawn bot after delay
+  if (window._tdmMode) {
+    if (bot.team === 'red') {
+      tdmBlueScore++;
+    } else if (bot.team === 'blue') {
+      tdmRedScore++;
+    }
+    updateTDMScoreHUD();
+    addKillFeed(`💀 ${playerName} killed ${bot.team === 'red' ? 'Red' : 'Blue'} Bot`);
+
+    // Check win condition
+    if (tdmBlueScore >= TDM_KILL_TARGET || tdmRedScore >= TDM_KILL_TARGET) {
+      const won = (TDM_MY_TEAM === 'blue' && tdmBlueScore >= TDM_KILL_TARGET) ||
+                  (TDM_MY_TEAM === 'red' && tdmRedScore >= TDM_KILL_TARGET);
+      state.gameOver = true;
+      document.getElementById('tdm-result-title').textContent = won ? 'VICTORY' : 'DEFEATED';
+      document.getElementById('tdm-result-title').style.color = won ? '#ffcc00' : '#ff3333';
+      document.getElementById('gameover-subtitle').textContent = won ? 'YOUR TEAM WINS' : 'ENEMY TEAM WINS';
+      document.getElementById('tdm-final-score').textContent = `Blue ${tdmBlueScore} — Red ${tdmRedScore}`;
+      document.getElementById('gameover-screen').style.display = 'flex';
+      document.exitPointerLock();
+    }
+
+    // Respawn bot after 3 seconds
+    setTimeout(() => {
+      if (state.gameOver) return;
+      bot.dead = false;
+      bot.hp = bot.maxHp || 100;
+      bot.shield = bot.maxShield || 100;
+      const spawnSide = bot.team === 'blue' ? -1 : 1;
+      const respawnPos = getSafeSpawnPosition();
+      bot.mesh.position.set(spawnSide * (Math.abs(respawnPos.x) + 10), 0, respawnPos.z);
+      bot.mesh.rotation.set(0, 0, 0);
+      bot.mesh.visible = true;
+      // Reset opacity/transparency from death animation and restore team colors
+      bot.mesh.traverse(child => {
+        if (child.isMesh && child.material) {
+          child.material.opacity = 1;
+          child.material.transparent = false;
+          // Restore original color
+          if (bot.originalColors && bot.originalColors.has(child)) {
+            child.material.color.setHex(bot.originalColors.get(child));
+          }
+        }
+      });
+      // Remove from deathAnims if still there
+      const daIdx = state.deathAnims.indexOf(bot);
+      if (daIdx !== -1) state.deathAnims.splice(daIdx, 1);
+      scene.add(bot.mesh);
+      if (bot.hpFill) bot.hpFill.scale.x = 1;
+    }, 3000);
+    return;
+  }
 
   // Award points based on type + headshot
   const type = bot.enemyType || 'soldier';
@@ -4927,7 +4439,7 @@ function killBot(bot, headshot) {
   document.getElementById('kills-num').textContent = state.killCount;
 
   const typeLabel = type === 'tank' ? '🛡 TANK' : type === 'rusher' ? '⚡ RUSHER' : '🔴';
-  addKillFeed(headshot ? `💀 HEADSHOT +${pts}` : `${typeLabel} KILL +${pts}`);
+  addKillFeed(headshot ? `💀 ${playerName} HEADSHOT +${pts}` : `${typeLabel} ${playerName} KILL +${pts}`);
   checkWaveComplete();
 }
 
@@ -5166,7 +4678,9 @@ function updateBots(dt) {
       moving = mLen > 0.1;
 
       // ── Combat ────────────────────────────────
-      if (bot.enemyType === 'rusher' && dist < cfg.shootRange) {
+      if (bot.isAlly) {
+        // Ally bots don't attack the player — skip combat
+      } else if (bot.enemyType === 'rusher' && dist < cfg.shootRange) {
         bot.shootTimer -= dt * 1000;
         if (bot.shootTimer <= 0) {
           bot.shootTimer = cfg.shootInterval + Math.random() * 200;
@@ -5275,6 +4789,7 @@ function botShoot(bot, playerPos, cfg) {
     hit: false,
     miss: Math.random() < 0.65,
     damage,
+    isAlly: bot.isAlly || false,
   });
 }
 
@@ -5309,7 +4824,7 @@ function updateBotBullets(dt) {
 
     b.mesh.position.set(nx, ny, nz);
 
-    if (!b.miss) {
+    if (!b.miss && !b.isAlly) {
       const playerBodyY = camera.position.y - 0.7;
       const dx = nx - camera.position.x;
       const dy = ny - playerBodyY;
@@ -5324,113 +4839,10 @@ function updateBotBullets(dt) {
 }
 
 // ─────────────────────────────────────────────
-// ─────────────────────────────────────────────
-//  HEAL ABILITY (G key — 2 charges per round, +30 shield each, 2s channel)
-// ─────────────────────────────────────────────
-const HEAL_AMOUNT = 30;
-const HEAL_MAX_CHARGES = 2;
-const HEAL_CHANNEL_TIME = 2000; // ms
-let healCharges = HEAL_MAX_CHARGES;
-let healChanneling = false;
-let healChannelTimer = 0;
-
-function useHeal() {
-  if (healCharges <= 0 || state.gameOver || gamePaused) return;
-  if (healChanneling || state.reloading) return;
-  // Start channeling
-  healChanneling = true;
-  healChannelTimer = 0;
-  // Show heal progress bar (reuse reload bar style)
-  document.getElementById('reload-bar-wrap').style.display = 'flex';
-  document.getElementById('reload-label').textContent = 'HEALING';
-  document.getElementById('reload-label').style.color = '#44ff88';
-  document.getElementById('reload-bar-fill').style.background = '#44ff88';
-  document.getElementById('reload-bar-fill').style.width = '0%';
-  // Show circular progress on crosshair
-  document.getElementById('reload-crosshair').style.opacity = '1';
-  document.getElementById('crosshair').style.opacity = '0';
-  document.getElementById('crosshair-sg').style.opacity = '0';
-  const arc = document.getElementById('rc-fill-arc');
-  arc.style.stroke = '#44ff88';
-  arc.style.strokeDashoffset = '94.25';
-}
-
-function updateHealChannel(dt) {
-  if (!healChanneling) return;
-  healChannelTimer += dt * 1000;
-  const pct = Math.min(1, healChannelTimer / HEAL_CHANNEL_TIME);
-
-  // Update progress bar
-  document.getElementById('reload-bar-fill').style.width = (pct * 100) + '%';
-  // Update circular crosshair
-  const arc = document.getElementById('rc-fill-arc');
-  arc.style.strokeDashoffset = (94.25 * (1 - pct)).toFixed(2);
-
-  if (pct >= 1) {
-    // Heal complete
-    healChanneling = false;
-    healCharges--;
-    state.playerShield = Math.min(SETTINGS.PLAYER_SHIELD, state.playerShield + HEAL_AMOUNT);
-    updateHealthUI();
-    Audio.shieldPickup();
-    addKillFeed('💊 HEALED! +' + HEAL_AMOUNT + ' SHIELD (' + healCharges + ' left)');
-    updateHealHUD();
-    // Hide progress
-    document.getElementById('reload-bar-wrap').style.display = 'none';
-    document.getElementById('reload-bar-fill').style.width = '0%';
-    document.getElementById('reload-bar-fill').style.background = '#ffcc00';
-    document.getElementById('reload-label').textContent = 'Reloading';
-    document.getElementById('reload-label').style.color = '#aaa';
-    document.getElementById('reload-crosshair').style.opacity = '0';
-    const arc = document.getElementById('rc-fill-arc');
-    arc.style.stroke = '#ffcc00';
-    // Restore crosshair
-    const isShotgun = currentWeapon.name === 'shotgun';
-    document.getElementById('crosshair').style.opacity = isShotgun ? '0' : '1';
-    document.getElementById('crosshair-sg').style.opacity = isShotgun ? '1' : '0';
-  }
-}
-
-function cancelHealChannel() {
-  if (!healChanneling) return;
-  healChanneling = false;
-  document.getElementById('reload-bar-wrap').style.display = 'none';
-  document.getElementById('reload-bar-fill').style.width = '0%';
-  document.getElementById('reload-bar-fill').style.background = '#ffcc00';
-  document.getElementById('reload-label').textContent = 'Reloading';
-  document.getElementById('reload-label').style.color = '#aaa';
-  document.getElementById('reload-crosshair').style.opacity = '0';
-  const arc = document.getElementById('rc-fill-arc');
-  arc.style.stroke = '#ffcc00';
-  const isShotgun = currentWeapon.name === 'shotgun';
-  document.getElementById('crosshair').style.opacity = isShotgun ? '0' : '1';
-  document.getElementById('crosshair-sg').style.opacity = isShotgun ? '1' : '0';
-}
-
-function resetHealCharges() {
-  healCharges = HEAL_MAX_CHARGES;
-  healChanneling = false;
-  healChannelTimer = 0;
-  updateHealHUD();
-}
-
-function updateHealHUD() {
-  const slot = document.getElementById('heal-slot');
-  const count = document.getElementById('heal-count');
-  if (!slot || !count) return;
-  count.textContent = healCharges;
-  if (healCharges <= 0) {
-    slot.classList.add('empty');
-  } else {
-    slot.classList.remove('empty');
-  }
-}
-
-// ─────────────────────────────────────────────
 //  ARMOUR ABILITY
 // ─────────────────────────────────────────────
-const ABILITY_COOLDOWN  = 90;  // seconds to recharge
-const ABILITY_DURATION  = 8;   // seconds active
+const ABILITY_COOLDOWN  = 40;  // seconds to recharge
+const ABILITY_DURATION  = 5;   // seconds active
 const ABILITY_DMG_DIV   = 3;   // damage divided by this while active
 const RING_PERIMETER    = 264; // approx perimeter of 68×68 rounded rect
 
@@ -5497,6 +4909,11 @@ function damagePlayer(dmg) {
   Audio.playerHit();
   // Armour ability reduces damage by 3×
   if (abilityState === 'active') dmg = Math.max(1, Math.floor(dmg / ABILITY_DMG_DIV));
+  // Capture zone damage reduction: 0.25x per zone, capped at 3 zones (0.75 total)
+  if (false && capturedZoneCount > 0) {
+    const reduction = Math.min(3, capturedZoneCount) * CAPTURE_DMG_REDUCTION;
+    dmg = Math.max(1, Math.round(dmg * (1 - reduction)));
+  }
   if (state.playerShield > 0) {
     const absorbed = Math.min(state.playerShield, dmg);
     state.playerShield -= absorbed;
@@ -5594,7 +5011,7 @@ function finishReload() {
 //  PLAYER MOVEMENT
 // ─────────────────────────────────────────────
 const PLAYER_RADIUS = 0.4;
-const PLAYER_HEIGHT = 2.3;
+// PLAYER_HEIGHT defined at top (2.3)
 
 const STEP_HEIGHT = 0.65; // max height player can auto-step up
 
@@ -5651,7 +5068,7 @@ const _fwd = new THREE.Vector3();
 const _right = new THREE.Vector3();
 
 // ── Slide / Crouch mechanic ──────────────────────────────────────────────
-const CROUCH_HEIGHT = 1.4;       // camera height when crouching
+const CROUCH_HEIGHT = 1.0;       // camera height when crouching
 const SLIDE_DURATION = 0.65;     // seconds
 const SLIDE_SPEED = 12;          // initial slide speed
 const SLIDE_FRICTION = 16;       // deceleration during slide
@@ -5666,7 +5083,6 @@ function startSlide() {
   if (isSliding || slideCooldown > 0 || !state.onGround) return;
   isSliding = true;
   slideTimer = SLIDE_DURATION;
-  // Slide in the direction the player is moving
   const dir = _fwd.clone();
   slideVelX = dir.x * SLIDE_SPEED;
   slideVelZ = dir.z * SLIDE_SPEED;
@@ -5691,7 +5107,6 @@ function updateSlide(dt) {
 
   if (isSliding) {
     slideTimer -= dt;
-    // Apply friction
     const friction = SLIDE_FRICTION * dt;
     const speed = Math.sqrt(slideVelX*slideVelX + slideVelZ*slideVelZ);
     if (speed > friction) {
@@ -5702,7 +5117,6 @@ function updateSlide(dt) {
       slideVelZ = 0;
     }
 
-    // Move player along slide direction
     const nx = camera.position.x + slideVelX * dt;
     const nz = camera.position.z + slideVelZ * dt;
     if (!playerCollides(nx, camera.position.z)) camera.position.x = nx;
@@ -5710,7 +5124,6 @@ function updateSlide(dt) {
 
     if (slideTimer <= 0) {
       isSliding = false;
-      // Transition to crouch if key still held
       if (state.keys[KB.slide]) {
         isCrouching = true;
       } else {
@@ -5811,7 +5224,6 @@ function updatePlayer(dt) {
   camera.rotation.order = 'YXZ';
   camera.rotation.y = state.yaw   + shakeX;
   camera.rotation.x = state.pitch + recoilPitch + shakeY;
-  // Slight camera tilt during slide
   camera.rotation.z = isSliding ? -0.08 : 0;
 
   if (state.reloading) {
@@ -5862,6 +5274,24 @@ function drawMinimap() {
   mmCtx.stroke();
   mmCtx.fillStyle = 'rgba(0,80,200,0.12)';
   mmCtx.fill();
+
+  // Capture zones — grey (uncaptured) or blue (captured)
+  const czR = (CAPTURE_ZONE_RADIUS / MM_WORLD) * MM_SIZE;
+  captureZones.forEach(cz => {
+    const cp = worldToMM(cz.pos.x, cz.pos.z);
+    mmCtx.beginPath();
+    mmCtx.arc(cp.x, cp.y, czR, 0, Math.PI * 2);
+    if (cz.captured) {
+      mmCtx.strokeStyle = 'rgba(68,170,255,0.9)';
+      mmCtx.fillStyle   = 'rgba(0,68,255,0.22)';
+    } else {
+      mmCtx.strokeStyle = 'rgba(120,120,120,0.7)';
+      mmCtx.fillStyle   = 'rgba(80,80,80,0.10)';
+    }
+    mmCtx.lineWidth = 1.5;
+    mmCtx.stroke();
+    mmCtx.fill();
+  });
 
   state.drops.forEach(drop => {
     const p = worldToMM(drop.mesh.position.x, drop.mesh.position.z);
@@ -5927,9 +5357,10 @@ function drawMinimap() {
 }
 
 function checkWaveComplete() {
-  if (pvpMode) return;
+  if (pvpMode || window._tdmMode) return;
   const alive = state.bots.filter(b => !b.dead).length;
-  document.getElementById('enemies-count').textContent = alive;
+  const ecEl = document.getElementById('enemies-count');
+  if (ecEl) ecEl.textContent = alive;
   if (alive === 0 && !state.waveSpawning) {
     state.waveSpawning = true;
     // Award wave completion bonus
@@ -5937,26 +5368,75 @@ function checkWaveComplete() {
     Audio.waveBonus();
     addKillFeed('🌊 WAVE CLEAR! +' + POINTS.wave_bonus + ' pts');
     state.wave++;
-    document.getElementById('wave-num').textContent = state.wave;
+    const wnEl = document.getElementById('wave-num');
+    if (wnEl) wnEl.textContent = state.wave;
     setTimeout(() => {
       spawnWave(state.wave);
       Audio.waveStart();
-      document.getElementById('enemies-count').textContent = state.bots.length;
+      const ecEl2 = document.getElementById('enemies-count');
+      if (ecEl2) ecEl2.textContent = state.bots.length;
       state.waveSpawning = false;
     }, 2500);
   }
 }
 
 function triggerGameOver() {
+  // In TDM mode, respawn instead of game over
+  if (window._tdmMode) {
+    // Enemy team scores
+    if (typeof tdmRedScore !== 'undefined') {
+      tdmRedScore++;
+      updateTDMScoreHUD();
+      addKillFeed(`${playerName} was eliminated`);
+      if (tdmRedScore >= TDM_KILL_TARGET) {
+        state.gameOver = true;
+        document.getElementById('tdm-result-title').textContent = 'DEFEATED';
+        document.getElementById('tdm-result-title').style.color = '#ff3333';
+        document.getElementById('gameover-subtitle').textContent = 'ENEMY TEAM WINS';
+        document.getElementById('tdm-final-score').textContent = `Blue ${tdmBlueScore} — Red ${tdmRedScore}`;
+        document.getElementById('gameover-screen').style.display = 'flex';
+        document.exitPointerLock();
+        return;
+      }
+    }
+    // Respawn after delay
+    state.playerHP = 0;
+    updateHealthUI();
+    setTimeout(() => {
+      if (state.gameOver) return;
+      state.playerHP = SETTINGS.PLAYER_HP;
+      state.playerShield = SETTINGS.PLAYER_SHIELD;
+      state.ammo = currentWeapon.maxAmmo;
+      camera.position.set(-25 + Math.random() * 10, PLAYER_HEIGHT, (Math.random() - 0.5) * 30);
+      state.velocity = { x: 0, y: 0, z: 0 };
+      updateHealthUI();
+      updateAmmoUI();
+    }, 3000);
+    return;
+  }
+
   state.gameOver = true;
   Audio.gameOver();
   document.exitPointerLock();
+  document.getElementById('gameover-subtitle').textContent = playerName + ' WAS ELIMINATED';
   document.getElementById('final-score-num').textContent = state.score.toLocaleString();
   document.getElementById('final-kills-num').textContent = state.killCount;
   const isNew = saveHighScore();
   document.getElementById('final-highscore-num').textContent = highScore.toLocaleString();
   document.getElementById('new-highscore-msg').style.display = isNew ? 'block' : 'none';
   document.getElementById('gameover-screen').style.display = 'flex';
+
+  // Report kills + 1 death to Convex
+  try {
+    const convex = window.__arenaConvex;
+    const api = window.__arenaApi;
+    if (convex && api) {
+      convex.mutation(api.stats.reportGameStats, {
+        kills: state.killCount,
+        deaths: 1,
+      }).catch(e => console.warn('stats sync failed:', e?.message));
+    }
+  } catch (e) { console.warn('stats report error:', e?.message); }
 }
 
 // ─────────────────────────────────────────────
@@ -5987,13 +5467,9 @@ document.getElementById('pause-leave-btn').addEventListener('click', () => {
   document.getElementById('pause-overlay').style.display = 'none';
   document.exitPointerLock();
   saveHighScore();
-  // Clear party matchCode so we stay in lobby on return
-  const _c = window.__arenaConvex, _a = window.__arenaApi;
-  if (_c && _a) _c.mutation(_a.parties.clearMatch, {}).catch(() => {});
   window.location.href = '/menu/';
 });
 
-// ── Load custom keybinds from localStorage ────────────────────────────────
 document.addEventListener('keydown', e => {
   if (e.code === 'Escape') {
     // Only handle resume — pausing is triggered by pointerlockchange when browser exits pointer lock
@@ -6006,7 +5482,6 @@ document.addEventListener('keydown', e => {
   if (e.code === KB.weapon1 && state.running) switchWeapon(LOADOUT_SLOT1);
   if (e.code === KB.weapon2 && state.running) switchWeapon(LOADOUT_SLOT2);
   if (e.code === KB.ability && state.running) activateAbility();
-  if (e.code === KB.heal    && state.running) useHeal();
   e.preventDefault();
 });
 document.addEventListener('keyup', e => { state.keys[e.code] = false; });
@@ -6031,7 +5506,7 @@ document.addEventListener('mouseup', e => {
   if (btn === KB.ads) state.mouseButtons[2] = false;
 });
 
-// Handle shoot/ads if bound to keyboard keys
+// Also handle shoot/ads if bound to keyboard keys
 document.addEventListener('keydown', e => {
   if (e.code === KB.shoot && state.running) {
     if (document.pointerLockElement !== canvas) return;
@@ -6048,7 +5523,7 @@ document.addEventListener('keyup', e => {
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 
 document.addEventListener('mousemove', e => {
-  if (!state.running || state.gameOver || gamePaused) return;
+  if (!state.running || state.gameOver) return;
   if (document.pointerLockElement !== canvas) return;
   const isADS = state.mouseButtons[2];
   const sens = isADS ? 0.0005 : 0.0018;
@@ -6057,12 +5532,15 @@ document.addEventListener('mousemove', e => {
   state.pitch = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, state.pitch));
 });
 
+// FIX: Show overlay when pointer lock is lost during play so user knows to click
+let _gameStartedAt = 0;
+
 document.addEventListener('pointerlockchange', () => {
   const overlay = document.getElementById('lock-overlay');
   if (document.pointerLockElement === canvas) {
     overlay.style.display = 'none';
-  } else if (state.running && !state.gameOver) {
-    // Pointer lock lost during gameplay — always show pause menu directly
+  } else if (state.running && !state.gameOver && (performance.now() - _gameStartedAt > 500)) {
+    // Pointer lock lost during gameplay — show pause menu (skip if game just started)
     overlay.style.display = 'none';
     if (!gamePaused) pauseGame();
   } else {
@@ -6159,49 +5637,16 @@ function startGame() {
   document.getElementById('score-num').textContent = '0';
   document.getElementById('points-num').textContent = '0';
   document.getElementById('kills-num').textContent = '0';
-  document.getElementById('wave-num').textContent = pvpMode ? 'PVP' : '1';
+  const wnEl3 = document.getElementById('wave-num');
+  if (wnEl3) wnEl3.textContent = pvpMode ? 'PVP' : '1';
 
   // PVP mode: empty arena, no bots, no waves
-  if (!pvpMode) {
+  // TDM mode: bots are spawned by startTDMGame after this
+  if (!pvpMode && !window._tdmMode) {
     spawnWave(1);
-  } else {
-    // Read room code from lobby page or URL query param (party direct join)
-    const urlParams = new URLSearchParams(window.location.search);
-    const roomCode = urlParams.get('code') || localStorage.getItem('pvpRoomCode') || '0000';
-    localStorage.removeItem('pvpRoomCode');
-    console.log("PVP room code:", roomCode);
-
-    // Display room code on screen
-    let rcEl = document.getElementById('pvp-room-code');
-    if (!rcEl) {
-      rcEl = document.createElement('div');
-      rcEl.id = 'pvp-room-code';
-      rcEl.style.cssText = `
-        position:fixed; top:16px; right:16px; z-index:60;
-        font-family:'Courier New',monospace; font-size:11px;
-        letter-spacing:3px; color:rgba(255,255,255,0.5);
-        background:rgba(0,0,0,0.5); padding:6px 12px;
-        border:1px solid rgba(255,255,255,0.15); border-radius:4px;
-        pointer-events:none;
-      `;
-      document.body.appendChild(rcEl);
-    }
-    rcEl.innerHTML = `<span style="color:rgba(255,255,255,0.3);font-size:9px;letter-spacing:2px;">ROOM</span> <span style="color:#44aaff;font-weight:bold;font-size:14px;">${roomCode}</span>`;
-
-    // Wait for socket to be connected before joining
-   function emitJoin() {
-  console.log("Emitting pvp:joinRoom with code:", roomCode);
-
-  socket.emit("pvp:joinRoom", { code: roomCode, name: playerName });
-}
-
-if (socket.connected) {
-  emitJoin();
-} else {
-  socket.on("connect", emitJoin);
-}
   }
-  document.getElementById('enemies-count').textContent = state.bots.length;
+  const ecEl3 = document.getElementById('enemies-count');
+  if (ecEl3) ecEl3.textContent = state.bots.length;
 
   // Hide wave/enemy HUD in PVP mode
   document.getElementById('top-bar').style.opacity = pvpMode ? '0' : '1';
@@ -6209,26 +5654,283 @@ if (socket.connected) {
   canvas.requestPointerLock();
 }
 
-// PVP mode — always true
-pvpMode = true;
+// ── TDM Mode ─────────────────────────────────────────────────────────────
+pvpMode = false;
 localStorage.removeItem('arenaGameMode');
 
-// ── Auto-start when arena page loads ─────────────────────────────────────
-window.addEventListener('load', () => {
-  startGame();
+// Show lobby
+document.getElementById('tdm-code-display').textContent = TDM_ROOM_CODE || '----';
+document.getElementById('tdm-size-display').textContent = `${TDM_TEAM_SIZE} v ${TDM_TEAM_SIZE}`;
+document.getElementById('tdm-players-display').textContent = `1 / ${TDM_TEAM_SIZE * 2} players (AI fills ${TDM_TEAM_SIZE * 2 - 1} slots)`;
+
+document.getElementById('tdm-start-btn').addEventListener('click', () => {
+  console.log('TDM START CLICKED');
+  document.getElementById('tdm-lobby').style.display = 'none';
+  try { Audio.unlock(); } catch(e) { console.warn('Audio unlock failed:', e); }
+  try { startTDMGame(); } catch(e) { console.error('startTDMGame failed:', e); }
 });
+
+document.getElementById('tdm-leave-btn').addEventListener('click', () => {
+  location.href = '/menu/';
+});
+
+function startTDMGame() {
+  window._tdmMode = true;
+  _gameStartedAt = performance.now();
+  startGame();
+  // Override: spawn team bots instead of wave bots
+  state.bots.forEach(b => scene.remove(b.mesh));
+  state.bots = [];
+
+  // Count real players (including self)
+  const realPlayerCount = 1 + Object.keys(remotePlayers).length;
+  // All real players go on blue team for now
+  const blueHumans = realPlayerCount;
+  const blueBotsNeeded = Math.max(0, TDM_TEAM_SIZE - blueHumans);
+  const redBotsNeeded = TDM_TEAM_SIZE; // entire red team is AI
+
+  // Helper: recolor all meshes in a bot to team colors
+  function recolorBot(bot, team) {
+    const isBlue = team === 'blue';
+    const bodyColor = isBlue ? 0x2244aa : 0x8b2020;
+    const armorColor = isBlue ? 0x1a3388 : 0x5c1010;
+    const darkColor = isBlue ? 0x0a1a44 : 0x1a0808;
+    const glowColor = isBlue ? 0x44aaff : 0xff2200;
+    const visorColor = isBlue ? 0x44aaff : 0xff2200;
+
+    bot.mesh.traverse(c => {
+      if (!c.isMesh || !c.material || !c.material.color) return;
+      const hex = c.material.color.getHex();
+      // Body colors (reds/oranges/pinks/purples/cyans from BOT_COLORS)
+      if (hex === 0xff2222 || hex === 0xff6600 || hex === 0xff0088 || hex === 0xaa00ff || hex === 0x00aaff) {
+        c.material.color.setHex(bodyColor);
+      }
+      // Armor colors
+      else if (hex === 0x661111 || hex === 0x662200 || hex === 0x660044 || hex === 0x440066 || hex === 0x004466) {
+        c.material.color.setHex(armorColor);
+      }
+      // Dark parts
+      else if (hex === 0x111111 || hex === 0x1a1a1a) {
+        c.material.color.setHex(darkColor);
+      }
+      // Glow/emissive parts (MeshBasicMaterial)
+      if (c.material.type === 'MeshBasicMaterial') {
+        c.material.color.setHex(glowColor);
+      }
+    });
+
+    // Recolor visor if it exists
+    if (bot.visor) bot.visor.material.color.setHex(visorColor);
+  }
+
+  // Helper: build PvP-style player model for team bots
+  function buildTeamBotModel(team) {
+    const S = 1.25;
+    const isBlue = team === 'blue';
+    const bodyMat   = new THREE.MeshLambertMaterial({ color: isBlue ? 0x2244aa : 0x8b2020 });
+    const armorMat  = new THREE.MeshLambertMaterial({ color: isBlue ? 0x1a3388 : 0x5c1010 });
+    const darkMat   = new THREE.MeshLambertMaterial({ color: isBlue ? 0x0a1a44 : 0x1a0808 });
+    const skinMat   = new THREE.MeshLambertMaterial({ color: 0xc68642 });
+    const visorMat  = new THREE.MeshBasicMaterial({ color: isBlue ? 0x44aaff : 0xff2200 });
+    const accentMat = new THREE.MeshBasicMaterial({ color: isBlue ? 0x44aaff : 0xff4422 });
+    const glowMat   = new THREE.MeshBasicMaterial({ color: isBlue ? 0x44aaff : 0xff2200 });
+
+    const root = new THREE.Group();
+
+    // Boots
+    const bootGeo = new THREE.BoxGeometry(0.18*S, 0.14*S, 0.28*S);
+    const leftBoot = new THREE.Mesh(bootGeo, darkMat);
+    const rightBoot = new THREE.Mesh(bootGeo, darkMat);
+    leftBoot.position.set(-0.12*S, 0.07*S, 0.02*S);
+    rightBoot.position.set(0.12*S, 0.07*S, 0.02*S);
+    root.add(leftBoot, rightBoot);
+
+    // Legs
+    const legGeo = new THREE.BoxGeometry(0.14*S, 0.80*S, 0.14*S);
+    const leftLeg = new THREE.Mesh(legGeo, darkMat);
+    const rightLeg = new THREE.Mesh(legGeo, darkMat);
+    leftLeg.position.set(-0.12*S, 0.54*S, 0);
+    rightLeg.position.set(0.12*S, 0.54*S, 0);
+    root.add(leftLeg, rightLeg);
+    [leftLeg, rightLeg].forEach(leg => {
+      const kp = new THREE.Mesh(new THREE.BoxGeometry(0.16*S, 0.12*S, 0.17*S), armorMat);
+      kp.position.set(0, -0.10*S, 0.06*S); leg.add(kp);
+    });
+
+    // Hips
+    const hips = new THREE.Mesh(new THREE.BoxGeometry(0.40*S, 0.14*S, 0.22*S), darkMat);
+    hips.position.set(0, 0.98*S, 0); root.add(hips);
+
+    // Torso
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.44*S, 0.58*S, 0.24*S), bodyMat);
+    torso.position.set(0, 1.36*S, 0); root.add(torso);
+    const chest = new THREE.Mesh(new THREE.BoxGeometry(0.40*S, 0.42*S, 0.07*S), armorMat);
+    chest.position.set(0, 0.02*S, 0.10*S); torso.add(chest);
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.05*S, 0.34*S, 0.02*S), accentMat);
+    stripe.position.set(0, 0, 0.04*S); chest.add(stripe);
+    [-0.28*S, 0.28*S].forEach(sx => {
+      const sp = new THREE.Mesh(new THREE.BoxGeometry(0.14*S, 0.12*S, 0.20*S), armorMat);
+      sp.position.set(sx, 0.22*S, 0); torso.add(sp);
+    });
+
+    // Arms
+    const upperArmGeo = new THREE.BoxGeometry(0.12*S, 0.34*S, 0.12*S);
+    const forearmGeo = new THREE.BoxGeometry(0.10*S, 0.34*S, 0.10*S);
+    const handGeo = new THREE.BoxGeometry(0.09*S, 0.12*S, 0.12*S);
+
+    const rightArm = new THREE.Group();
+    const rSJ = new THREE.Group(); rightArm.add(rSJ);
+    rSJ.add(new THREE.Mesh(upperArmGeo, bodyMat));
+    const rEJ = new THREE.Group(); rEJ.position.set(0, -0.34*S, 0); rSJ.add(rEJ);
+    rEJ.add(new THREE.Mesh(forearmGeo, bodyMat));
+    rEJ.add(new THREE.Mesh(handGeo, skinMat)).position.set(0, -0.36*S, 0);
+    rSJ.rotation.set(-0.55, -0.50, 0.15); rEJ.rotation.set(-0.90, 0, 0);
+    rightArm.position.set(0.22*S, 0.18*S, 0); torso.add(rightArm);
+
+    const leftArm = new THREE.Group();
+    const lSJ = new THREE.Group(); leftArm.add(lSJ);
+    lSJ.add(new THREE.Mesh(upperArmGeo, bodyMat));
+    const lEJ = new THREE.Group(); lEJ.position.set(0, -0.34*S, 0); lSJ.add(lEJ);
+    lEJ.add(new THREE.Mesh(forearmGeo, bodyMat));
+    lEJ.add(new THREE.Mesh(handGeo, skinMat)).position.set(0, -0.36*S, 0);
+    lSJ.rotation.set(-0.65, 0.50, -0.15); lEJ.rotation.set(-0.80, 0, 0);
+    leftArm.position.set(-0.22*S, 0.18*S, 0); torso.add(leftArm);
+
+    // Neck
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.07*S, 0.08*S, 0.12*S, 8), skinMat);
+    neck.position.set(0, 1.70*S, 0); root.add(neck);
+
+    // Head
+    const headGroup = new THREE.Group();
+    headGroup.position.set(0, 1.84*S, 0); root.add(headGroup);
+    const helm = new THREE.Mesh(new THREE.BoxGeometry(0.32*S, 0.32*S, 0.32*S), armorMat);
+    headGroup.add(helm);
+    const ridge = new THREE.Mesh(new THREE.BoxGeometry(0.07*S, 0.06*S, 0.28*S), darkMat);
+    ridge.position.set(0, 0.16*S, 0); headGroup.add(ridge);
+    const visor = new THREE.Mesh(new THREE.BoxGeometry(0.28*S, 0.10*S, 0.05*S), visorMat);
+    visor.position.set(0, 0.02*S, 0.15*S); headGroup.add(visor);
+    const visorEdge = new THREE.Mesh(new THREE.BoxGeometry(0.30*S, 0.02*S, 0.03*S), accentMat);
+    visorEdge.position.set(0, -0.04*S, 0.16*S); headGroup.add(visorEdge);
+    const chin = new THREE.Mesh(new THREE.BoxGeometry(0.22*S, 0.07*S, 0.08*S), darkMat);
+    chin.position.set(0, -0.12*S, 0.10*S); headGroup.add(chin);
+
+    // Weapon on torso
+    const weaponGroup = new THREE.Group();
+    weaponGroup.position.set(0.0, -0.10*S, 0.38*S); torso.add(weaponGroup);
+    const metalMat = new THREE.MeshLambertMaterial({ color: 0x222226 });
+    const polyMat = new THREE.MeshLambertMaterial({ color: 0x141416 });
+    const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.07*S, 0.10*S, 0.38*S), metalMat);
+    receiver.position.set(0, 0, 0.05*S); weaponGroup.add(receiver);
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.016*S, 0.016*S, 0.36*S, 10), metalMat);
+    barrel.rotation.x = Math.PI/2; barrel.position.set(0, 0.014*S, 0.40*S); weaponGroup.add(barrel);
+    const mag = new THREE.Mesh(new THREE.BoxGeometry(0.042*S, 0.14*S, 0.055*S), polyMat);
+    mag.position.set(0, -0.11*S, 0.06*S); weaponGroup.add(mag);
+
+    // Glow strips
+    [leftLeg, rightLeg].forEach((leg, i) => {
+      const strip = new THREE.Mesh(new THREE.BoxGeometry(0.025*S, 0.56*S, 0.05*S), glowMat);
+      strip.position.set(i === 0 ? -0.07*S : 0.07*S, 0, 0.05*S); leg.add(strip);
+    });
+    [-0.21*S, 0.21*S].forEach(sx => {
+      const strip = new THREE.Mesh(new THREE.BoxGeometry(0.025*S, 0.42*S, 0.05*S), glowMat);
+      strip.position.set(sx, 0, 0.09*S); torso.add(strip);
+    });
+    const helmStrip = new THREE.Mesh(new THREE.BoxGeometry(0.28*S, 0.025*S, 0.05*S), glowMat);
+    helmStrip.position.set(0, -0.10*S, 0.14*S); headGroup.add(helmStrip);
+
+    scene.add(root);
+    return { mesh: root, headGroup, leftLeg, rightLeg, leftArm, rightArm, head: helm };
+  }
+
+  // Spawn blue team AI bots using PvP player model (allies)
+  for (let i = 0; i < blueBotsNeeded; i++) {
+    const bot = spawnBot(i);
+    bot.team = 'blue';
+    bot.isAlly = true;
+    // Remove the default bot mesh and replace with PvP-style model
+    scene.remove(bot.mesh);
+    const teamModel = buildTeamBotModel('blue');
+    bot.mesh = teamModel.mesh;
+    bot.headGroup = teamModel.headGroup;
+    bot.head = teamModel.head;
+    bot.leftLeg = teamModel.leftLeg || bot.leftLeg;
+    bot.rightLeg = teamModel.rightLeg || bot.rightLeg;
+    // TDM: 100 HP + 100 shield
+    bot.hp = 100; bot.maxHp = 100; bot.shield = 100; bot.maxShield = 100;
+    // Rebuild originalColors for the new mesh
+    bot.originalColors = new Map();
+    bot.mesh.traverse(child => {
+      if (child.isMesh && child.material && child.material.color) {
+        bot.originalColors.set(child, child.material.color.getHex());
+      }
+    });
+    // Spawn at safe position on blue side
+    const blueSpawn = getSafeSpawnPosition();
+    bot.mesh.position.set(-(Math.abs(blueSpawn.x) + 10), 0, blueSpawn.z);
+    state.bots.push(bot);
+  }
+
+  // Spawn red team bots using PvP player model (enemies)
+  for (let i = 0; i < redBotsNeeded; i++) {
+    const bot = spawnBot(i + TDM_TEAM_SIZE);
+    bot.team = 'red';
+    bot.isAlly = false;
+    // Remove the default bot mesh and replace with PvP-style model
+    scene.remove(bot.mesh);
+    const teamModel = buildTeamBotModel('red');
+    bot.mesh = teamModel.mesh;
+    bot.headGroup = teamModel.headGroup;
+    bot.head = teamModel.head;
+    bot.leftLeg = teamModel.leftLeg || bot.leftLeg;
+    bot.rightLeg = teamModel.rightLeg || bot.rightLeg;
+    // TDM: 100 HP + 100 shield
+    bot.hp = 100; bot.maxHp = 100; bot.shield = 100; bot.maxShield = 100;
+    // Rebuild originalColors for the new mesh
+    bot.originalColors = new Map();
+    bot.mesh.traverse(child => {
+      if (child.isMesh && child.material && child.material.color) {
+        bot.originalColors.set(child, child.material.color.getHex());
+      }
+    });
+    // Spawn at safe position on red side
+    const redSpawn = getSafeSpawnPosition();
+    bot.mesh.position.set(Math.abs(redSpawn.x) + 10, 0, redSpawn.z);
+    state.bots.push(bot);
+  }
+
+  console.log(`TDM started: ${blueHumans} humans + ${blueBotsNeeded} blue bots vs ${redBotsNeeded} red bots`);
+
+  // Spawn player on blue side
+  camera.position.set(-25, PLAYER_HEIGHT, (Math.random() - 0.5) * 20);
+  state.yaw = 0;
+
+  tdmBlueScore = 0;
+  tdmRedScore = 0;
+  updateTDMScoreHUD();
+}
+
+function updateTDMScoreHUD() {
+  const blueEl = document.getElementById('blue-score-num');
+  const redEl = document.getElementById('red-score-num');
+  if (blueEl) blueEl.textContent = tdmBlueScore;
+  if (redEl) redEl.textContent = tdmRedScore;
+}
+
+// Override bot kill to add team scoring
+const _origDamageBotBy = typeof damageBotBy === 'function' ? damageBotBy : null;
+
+// Hook into kill tracking — override triggerGameOver for TDM
+const _origTriggerGameOver = typeof triggerGameOver === 'function' ? triggerGameOver : null;
+
+// TDM kill tracking is handled directly in killBot() — this is a no-op
+let _lastBotDeathCount = 0;
+function checkTDMKills() {
+  // Scoring handled in killBot and socket events
+}
 
 // ── Play Again → back to menu ─────────────────────────────────────────────
 document.getElementById('restart-btn').addEventListener('click', () => {
   document.exitPointerLock();
-  // Clean up remote players
-  for (const id of Object.keys(remotePlayers)) removeRemotePlayer(id);
-  if (pvpHudEl) pvpHudEl.style.display = 'none';
-  // Flag new high score if applicable
-  saveHighScore();
-  // Clear party matchCode so we stay in lobby on return
-  const _c = window.__arenaConvex, _a = window.__arenaApi;
-  if (_c && _a) _c.mutation(_a.parties.clearMatch, {}).catch(() => {});
   window.location.href = '/menu/';
 });
 
@@ -6262,11 +5964,11 @@ function loop() {
     updateShieldZone(dt);
     updateCaptureZones(dt);
     updateAbility(dt);
-    updateHealChannel(dt);
     updateArenaAnims(now / 1000);
     updateRemotePlayers(dt);
     tickPVPMove(dt);
     drawMinimap();
+    checkTDMKills();
 
     for (let i = state.muzzleFlashes.length - 1; i >= 0; i--) {
       const f = state.muzzleFlashes[i];
@@ -6328,4 +6030,4 @@ function loop() {
 loop();
 </script>
 </body>
-</html> 
+</html>

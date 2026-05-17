@@ -49,6 +49,11 @@ document.querySelectorAll('[data-action]').forEach(b => {
       activeMode = 'pvp';
       document.getElementById('play-tagline').textContent = '1v1 ranked. Server-authoritative hits. Pure aim.';
     }
+    if (a === 'mode-tdm') {
+      setActiveItem(b);
+      activeMode = 'tdm';
+      document.getElementById('play-tagline').textContent = 'Team Deathmatch. 2v2 to 4v4. AI fills empty slots.';
+    }
   });
 });
 function setActiveItem(el) {
@@ -79,8 +84,42 @@ function play() {
     }
     return;
   }
+  if (currentPartyId && activeMode === 'tdm') {
+    // Check if all members are ready before starting
+    const playBtn = document.getElementById('btn-play');
+    if (playBtn.style.opacity === '0.4') {
+      toast('Waiting for party members to ready up', 'error');
+      return;
+    }
+    // Show team size picker overlay — start button will handle the redirect
+    const tdmOverlay = document.getElementById('tdm-overlay');
+    if (tdmOverlay) {
+      // Override start button for party mode
+      document.getElementById('tdm-start').onclick = () => {
+        let code = getTDMCode ? getTDMCode() : '';
+        if (code.length !== 4 || !/^\d{4}$/.test(code)) {
+          code = String(Math.floor(1000 + Math.random() * 9000));
+        }
+        const size = tdmTeamSize || 3;
+        const convex = getConvex();
+        if (convex) {
+          convex.mutation(api.parties.startMatch, { matchCode: 'tdm-' + code })
+            .then(() => { location.href = `/multiplayer/?code=${code}&size=${size}`; })
+            .catch(e => toast(e.message?.replace(/^.*Error: /, '') || 'Failed to start', 'error'));
+        } else {
+          location.href = `/multiplayer/?code=${code}&size=${size}`;
+        }
+      };
+      tdmOverlay.classList.add('show');
+    }
+    return;
+  }
   if (activeMode === 'bots') location.href = '/bots/';
   else if (activeMode === 'pvp') location.href = '/lobby/';
+  else if (activeMode === 'tdm') {
+    const tdmOverlay = document.getElementById('tdm-overlay');
+    if (tdmOverlay) tdmOverlay.classList.add('show');
+  }
 }
 document.getElementById('btn-play').onclick = play;
 
@@ -93,6 +132,7 @@ function escAction() {
   if (listeningKb) { listeningKb = null; renderKb(); return; }
   if (kbOverlay.classList.contains('show'))     { kbOverlay.classList.remove('show'); return; }
   if (inviteOverlay.classList.contains('show')) { inviteOverlay.classList.remove('show'); return; }
+  if (document.getElementById('tdm-overlay').classList.contains('show')) { document.getElementById('tdm-overlay').classList.remove('show'); return; }
   if (document.getElementById('social-sidebar').classList.contains('open')) { document.getElementById('social-sidebar').classList.remove('open'); return; }
   if (escOverlay.classList.contains('show'))    { escOverlay.classList.remove('show'); return; }
   if (activeTab !== 'play') { setTab('play'); return; }
@@ -658,7 +698,12 @@ async function pollParty() {
 
       // Auto-redirect non-leaders when leader starts the match
       if (!iAmLeader && party.matchCode) {
-        location.href = `/pvp/?code=${party.matchCode}`;
+        if (party.matchCode.startsWith('tdm-')) {
+          const tdmCode = party.matchCode.replace('tdm-', '');
+          location.href = `/multiplayer/?code=${tdmCode}&size=${tdmTeamSize || 3}`;
+        } else {
+          location.href = `/pvp/?code=${party.matchCode}`;
+        }
         return;
       }
 
@@ -858,3 +903,67 @@ document.getElementById('ready-btn').onclick = async () => {
 setInterval(pollParty, 3000);
 // Initial poll after auth loads
 setTimeout(pollParty, 2000);
+
+
+// ── TDM Team Deathmatch Overlay ───────────────────────
+let tdmTeamSize = 3;
+const tdmOverlay = document.getElementById('tdm-overlay');
+
+if (tdmOverlay) {
+  document.querySelectorAll('.tdm-size-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tdm-size-btn').forEach(b => {
+        b.classList.remove('active');
+        b.style.borderColor = '';
+        b.style.color = '';
+        b.style.boxShadow = '';
+      });
+      btn.classList.add('active');
+      btn.style.borderColor = 'var(--h-accent)';
+      btn.style.color = 'var(--h-accent)';
+      btn.style.boxShadow = '0 0 10px var(--h-accent-glow)';
+      tdmTeamSize = parseInt(btn.dataset.size);
+    });
+  });
+
+  // 4-digit code inputs
+  const tdmCodeInputs = document.querySelectorAll('.tdm-code-input');
+  tdmCodeInputs.forEach((inp, idx) => {
+    inp.addEventListener('input', () => {
+      inp.value = inp.value.replace(/[^0-9]/g, '');
+      if (inp.value.length === 1 && idx < 3) tdmCodeInputs[idx + 1].focus();
+    });
+    inp.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace' && inp.value === '' && idx > 0) {
+        tdmCodeInputs[idx - 1].focus();
+        tdmCodeInputs[idx - 1].value = '';
+      }
+    });
+    inp.addEventListener('paste', (e) => {
+      e.preventDefault();
+      const p = (e.clipboardData.getData('text') || '').replace(/[^0-9]/g, '').slice(0, 4);
+      for (let i = 0; i < 4; i++) { if (tdmCodeInputs[i]) tdmCodeInputs[i].value = p[i] || ''; }
+      if (p.length === 4) tdmCodeInputs[3].focus();
+    });
+  });
+
+  // Random code button
+  document.getElementById('tdm-random-code').onclick = () => {
+    const c = String(Math.floor(1000 + Math.random() * 9000));
+    tdmCodeInputs.forEach((inp, i) => inp.value = c[i]);
+  };
+
+  // Generate random code on open
+  function getTDMCode() { return Array.from(tdmCodeInputs).map(i => i.value).join(''); }
+
+  document.getElementById('tdm-cancel').onclick = () => tdmOverlay.classList.remove('show');
+  document.getElementById('tdm-start').onclick = () => {
+    let code = getTDMCode();
+    if (code.length !== 4 || !/^\d{4}$/.test(code)) {
+      // Auto-generate if not filled
+      code = String(Math.floor(1000 + Math.random() * 9000));
+    }
+    localStorage.setItem('tdmRoomCode', code);
+    location.href = `/multiplayer/?code=${code}&size=${tdmTeamSize}`;
+  };
+}

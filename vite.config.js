@@ -17,6 +17,7 @@ export default defineConfig({
         lobby:   resolve(__dirname, 'src/lobby/index.html'),
         bots:    resolve(__dirname, 'src/bots/index.html'),
         pvp:     resolve(__dirname, 'src/pvp/index.html'),
+        multiplayer: resolve(__dirname, 'src/multiplayer/index.html'),
       },
     },
   },
