@@ -975,14 +975,60 @@
 </div>
 
 <!-- Start Screen — TDM Lobby -->
-<div id="tdm-lobby" class="screen">
-  <h1 style="font-size:36px;letter-spacing:8px;">TEAM DEATHMATCH</h1>
-  <div class="subtitle" id="tdm-lobby-sub">Share this code with friends to join the same match</div>
-  <div style="font-size:36px;color:#44aaff;letter-spacing:8px;font-weight:bold;margin-bottom:4px;font-family:'Courier New',monospace;" id="tdm-code-display">----</div>
-  <div style="font-size:11px;color:rgba(255,255,255,0.4);letter-spacing:2px;margin-bottom:16px;" id="tdm-size-display">3 v 3</div>
-  <div style="font-size:12px;color:rgba(255,255,255,0.6);letter-spacing:2px;margin-bottom:24px;" id="tdm-players-display">1 / 6 players</div>
-  <button class="screen-btn" id="tdm-start-btn">START MATCH (AI FILLS EMPTY SLOTS)</button>
-  <button class="screen-btn" id="tdm-leave-btn" style="margin-top:12px;border-color:rgba(255,60,60,0.4);color:rgba(255,100,100,0.85);">LEAVE</button>
+<div id="tdm-lobby" class="screen" style="background:rgba(0,0,0,0.95);">
+  <div style="width:100%;max-width:900px;padding:20px;font-family:'Courier New',monospace;">
+    <!-- Header -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div style="font-size:14px;letter-spacing:3px;color:#fff;text-transform:uppercase;">◀ Team Deathmatch</div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="font-size:11px;letter-spacing:2px;color:rgba(255,255,255,0.4);">ROOM CODE</div>
+        <div style="font-size:18px;letter-spacing:4px;color:#44aaff;font-weight:bold;" id="tdm-code-display">----</div>
+      </div>
+      <div style="font-size:11px;letter-spacing:2px;color:rgba(255,255,255,0.4);" id="tdm-size-display">3 v 3</div>
+    </div>
+
+    <!-- VS Layout -->
+    <div style="display:flex;align-items:center;gap:0;width:100%;">
+      <!-- Blue Team -->
+      <div style="flex:1;">
+        <div style="text-align:center;margin-bottom:10px;">
+          <span style="font-size:12px;letter-spacing:4px;color:#44aaff;text-transform:uppercase;font-weight:bold;">Blue Team</span>
+          <div style="height:2px;background:linear-gradient(90deg,transparent,#44aaff,transparent);margin-top:4px;"></div>
+        </div>
+        <div id="blue-team-slots" style="display:flex;flex-wrap:wrap;justify-content:center;gap:8px;min-height:120px;"></div>
+      </div>
+
+      <!-- VS Badge -->
+      <div style="width:80px;text-align:center;flex-shrink:0;">
+        <div style="width:56px;height:56px;margin:0 auto;border:2px solid rgba(255,255,255,0.3);border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);">
+          <span style="font-size:16px;font-weight:bold;letter-spacing:2px;color:#fff;">VS</span>
+        </div>
+      </div>
+
+      <!-- Red Team -->
+      <div style="flex:1;">
+        <div style="text-align:center;margin-bottom:10px;">
+          <span style="font-size:12px;letter-spacing:4px;color:#ff4444;text-transform:uppercase;font-weight:bold;">Red Team</span>
+          <div style="height:2px;background:linear-gradient(90deg,transparent,#ff4444,transparent);margin-top:4px;"></div>
+        </div>
+        <div id="red-team-slots" style="display:flex;flex-wrap:wrap;justify-content:center;gap:8px;min-height:120px;"></div>
+      </div>
+    </div>
+
+    <!-- Match Info -->
+    <div style="text-align:center;margin-top:20px;font-size:10px;letter-spacing:2px;color:rgba(255,255,255,0.4);">
+      FIRST TO <span style="color:#ffcc00;">25 KILLS</span> · AI FILLS EMPTY SLOTS
+    </div>
+
+    <!-- Player count -->
+    <div style="text-align:center;margin-top:8px;font-size:11px;letter-spacing:2px;color:rgba(255,255,255,0.5);" id="tdm-players-display">1 / 6 players</div>
+
+    <!-- Buttons -->
+    <div style="display:flex;justify-content:center;gap:16px;margin-top:24px;">
+      <button class="screen-btn" id="tdm-leave-btn" style="border-color:rgba(255,60,60,0.4);color:rgba(255,100,100,0.85);">LEAVE</button>
+      <button class="screen-btn" id="tdm-start-btn" style="border-color:#44aaff;color:#44aaff;padding:14px 60px;">START MATCH</button>
+    </div>
+  </div>
 </div>
 
 <!-- Game Over Screen — TDM -->
@@ -1029,9 +1075,12 @@ const PLAYER_HEIGHT = 2.3;
 const __tdmParams = new URLSearchParams(location.search);
 const TDM_ROOM_CODE = __tdmParams.get('code') || '';
 const TDM_TEAM_SIZE = parseInt(__tdmParams.get('size')) || 3;
+const TDM_PARTY_ID = __tdmParams.get('party') || localStorage.getItem('tdmPartyId') || ('solo-' + Math.random().toString(36).slice(2,8));
 const TDM_KILL_TARGET = 25;
 let tdmBlueScore = 0, tdmRedScore = 0;
 const TDM_MY_TEAM = 'blue';
+// Store party ID for team matching
+localStorage.setItem('tdmPartyId', TDM_PARTY_ID);
 
 const __serverUrl = "https://arena-fps-server.onrender.com";
 const socket = io(__serverUrl, {
@@ -1220,27 +1269,60 @@ function tickPVPMove(dt) {
 }
 
 function pvpShoot() {
-  // TDM: check hits against remote players (enemies on other team)
+  // TDM: check hits against remote players (enemies on other team only)
   if (!TDM_ROOM_CODE) return;
   const raycaster2 = new THREE.Raycaster();
   raycaster2.setFromCamera(new THREE.Vector2(0, 0), camera);
   const dir = raycaster2.ray.direction.clone();
 
   for (const rp of Object.values(remotePlayers)) {
-    if (rp.dead) continue;
-    const toPlayer = new THREE.Vector3(rp.x, rp.y - 0.5, rp.z).sub(camera.position);
-    const dist = toPlayer.length();
+    if (rp.dead || rp.isAlly) continue; // skip teammates
+
+    // Simple reliable hitbox: check distance from ray to player center
+    const rpCenter = new THREE.Vector3(rp.x, rp.y - 0.8, rp.z); // body center
+    const rayOrigin = camera.position.clone();
+    const toRp = rpCenter.clone().sub(rayOrigin);
+    const dist = toRp.length();
     if (dist > 50) continue;
-    toPlayer.normalize();
-    const dot = dir.dot(toPlayer);
-    const threshold = Math.max(0.97, 1 - (0.8 / dist));
-    if (dot > threshold) {
+
+    // Find closest point on ray to the player center
+    const projLen = toRp.dot(dir);
+    if (projLen < 0) continue; // behind camera
+
+    const closestPoint = rayOrigin.clone().add(dir.clone().multiplyScalar(projLen));
+    const missDistance = closestPoint.distanceTo(rpCenter);
+
+    // Hit if ray passes within 0.8 units of body center (generous hitbox)
+    if (missDistance < 0.8) {
+      const dmg = currentWeapon.damage;
+      // Headshot if closest point is above neck
+      const hitY = closestPoint.y;
+      const headshot = hitY > (rp.y - 0.4);
+
+      const finalDmg = headshot ? Math.round(dmg * SETTINGS.HEADSHOT_MULT) : dmg;
       socket.emit("pvp:hit", {
         targetId: rp.id,
-        damage: currentWeapon.damage,
-        headshot: false,
+        damage: finalDmg,
+        headshot,
       });
-      showHitmarker(false);
+      showHitmarker(headshot);
+      if (headshot) Audio.headshot(); else Audio.hit();
+
+      // Show damage number
+      const worldPos = new THREE.Vector3(rp.x, rp.y + 0.5 + Math.random() * 0.3, rp.z);
+      const projected = worldPos.clone().project(camera);
+      if (projected.z <= 1) {
+        const sx = (projected.x * 0.5 + 0.5) * window.innerWidth;
+        const sy = (-projected.y * 0.5 + 0.5) * window.innerHeight;
+        const el = document.createElement('div');
+        el.className = 'dmg-num ' + (headshot ? 'headshot' : 'normal');
+        el.textContent = (headshot ? '💀 ' : '') + finalDmg;
+        el.style.left = sx + 'px';
+        el.style.top = sy + 'px';
+        el.style.transform = 'translate(-50%, -50%)';
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 750);
+      }
       break;
     }
   }
@@ -1253,9 +1335,31 @@ socket.on("pvp:opponentJoined", ({ id, player }) => {
   remotePlayers[id] = buildRemotePlayerModel(id);
   const rp = remotePlayers[id];
   rp.playerName = player.name || 'Player';
+  rp.partyId = player.party || '';
+  // Team assignment: same party = teammate (blue), different party = opponent (red)
+  rp.team = (rp.partyId === TDM_PARTY_ID) ? 'blue' : 'red';
+  rp.isAlly = rp.team === 'blue';
+
+  // Recolor model based on team
+  if (rp.team === 'blue') {
+    rp.mesh.traverse(c => {
+      if (c.isMesh && c.material && c.material.color) {
+        // Change red tones to blue
+        const hex = c.material.color.getHex();
+        if (hex === 0x8b2020) c.material.color.setHex(0x2244aa);
+        else if (hex === 0x5c1010) c.material.color.setHex(0x1a3388);
+        else if (hex === 0x1a0808) c.material.color.setHex(0x0a1a44);
+      }
+      if (c.isMesh && c.material && c.material.type === 'MeshBasicMaterial') {
+        const hex = c.material.color.getHex();
+        if (hex === 0xff2200 || hex === 0xff4422) c.material.color.setHex(0x44aaff);
+      }
+    });
+  }
+
   if (player.x) { rp.x = rp.tx = player.x; rp.y = rp.ty = player.y; rp.z = rp.tz = player.z; }
   rp.mesh.position.set(rp.x, rp.y - PLAYER_HEIGHT, rp.z);
-  console.log("TDM: player joined", id, rp.playerName);
+  console.log("TDM: player joined", id, rp.playerName, "team:", rp.team);
   updateTDMLobbyCount();
 });
 
@@ -1272,8 +1376,24 @@ socket.on("pvp:opponentMoved", ({ id, x, y, z, yaw, pitch }) => {
 });
 
 socket.on("pvp:hit", ({ shooterId, damage, headshot, hp, shield }) => {
-  state.playerHP = Math.max(0, hp);
-  state.playerShield = Math.max(0, shield);
+  // If server provides HP values, use them; otherwise calculate locally
+  if (hp !== undefined && hp !== null) {
+    state.playerHP = Math.max(0, hp);
+    state.playerShield = Math.max(0, shield || 0);
+  } else {
+    // Local damage calculation (server doesn't track TDM HP)
+    const dmg = damage || 25;
+    if (state.playerShield > 0) {
+      const absorbed = Math.min(state.playerShield, dmg);
+      state.playerShield -= absorbed;
+      const remaining = dmg - absorbed;
+      if (remaining > 0) state.playerHP -= remaining;
+    } else {
+      state.playerHP -= dmg;
+    }
+    state.playerHP = Math.max(0, state.playerHP);
+    state.playerShield = Math.max(0, state.playerShield);
+  }
   updateHealthUI();
   triggerHitFlash();
   if (state.playerHP <= 0) {
@@ -1319,9 +1439,7 @@ socket.on("pvp:playerDied", ({ deadId, killerId }) => {
 });
 
 function updateTDMLobbyCount() {
-  const count = 1 + Object.keys(remotePlayers).length;
-  const el = document.getElementById('tdm-players-display');
-  if (el) el.textContent = `${count} / ${TDM_TEAM_SIZE * 2} players (AI fills ${Math.max(0, TDM_TEAM_SIZE * 2 - count)} slots)`;
+  if (typeof renderTeamSlots === 'function') renderTeamSlots();
 }
 
 function updateTDMScoreHUD() {
@@ -1334,8 +1452,8 @@ function updateTDMScoreHUD() {
 // Join the TDM room
 if (TDM_ROOM_CODE) {
   const emitTDMJoin = () => {
-    console.log("Emitting pvp:joinRoom for TDM with code:", TDM_ROOM_CODE);
-    socket.emit("pvp:joinRoom", { code: TDM_ROOM_CODE, name: playerName });
+    console.log("Emitting pvp:joinRoom for TDM with code:", TDM_ROOM_CODE, "party:", TDM_PARTY_ID);
+    socket.emit("pvp:joinRoom", { code: TDM_ROOM_CODE, name: playerName, party: TDM_PARTY_ID });
   };
   if (socket.connected) emitTDMJoin();
   else socket.on("connect", emitTDMJoin);
@@ -1374,10 +1492,10 @@ window.addEventListener('load', () => {
   if (slot2Label) slot2Label.textContent = {rifle:'Rifle',smg:'SMG',shotgun:'Shotgun',sniper:'Sniper'}[LOADOUT_SLOT2] || 'Shotgun';
   // Update slot SVG icons based on loadout
   const WEAPON_SVGS = {
-    rifle: `<img src="/menu/rifle.png" style="width:100%;height:100%;object-fit:contain;"/>`,
-    shotgun: `<img src="/menu/shotgun.png" style="width:100%;height:100%;object-fit:contain;"/>`,
-    smg: `<img src="/menu/smg.png" style="width:100%;height:100%;object-fit:contain;"/>`,
-    sniper: `<img src="/menu/sniper.png" style="width:100%;height:100%;object-fit:contain;"/>`,
+    rifle: `<img src="/multiplayer/rifle.png" style="width:100%;height:100%;object-fit:contain;"/>`,
+    shotgun: `<img src="/multiplayer/shotgun.png" style="width:100%;height:100%;object-fit:contain;"/>`,
+    smg: `<img src="/multiplayer/smg.png" style="width:100%;height:100%;object-fit:contain;"/>`,
+    sniper: `<img src="/multiplayer/sniper.png" style="width:100%;height:100%;object-fit:contain;"/>`,
   };
   const s1svg = el('inv-slot-1-svg');
   const s2svg = el('inv-slot-2-svg');
@@ -3761,7 +3879,7 @@ function createMuzzleFlash() {
 }
 
 function shoot() {
-  if (state.reloading || state.gameOver) return;
+  if (state.reloading || state.gameOver || state.playerHP <= 0) return;
   if (state.ammo <= 0) { Audio.emptyClick(); return; }
   // Fire rate limiting
   const now = performance.now();
@@ -3877,8 +3995,8 @@ if (isWallHit) {
     }
   }
 
-  // PVP: one hit-check per shot (not per pellet)
-  if (pvpMode) pvpShoot();
+  // PVP/TDM: hit-check against remote players per shot
+  if (pvpMode || window._tdmMode) pvpShoot();
 }
 
 function spawnSpark(pos) {
@@ -4363,9 +4481,25 @@ function saveHighScore() {
   return false;
 }
 
-function killBot(bot, headshot) {
-  state.killCount++;
-  onKillStreak();
+function killBot(bot, headshot, killerName) {
+  if (!killerName) killerName = playerName; // default: player killed
+  const playerKill = (killerName === playerName);
+
+  if (playerKill) {
+    state.killCount++;
+    onKillStreak();
+    // Report kill to Convex
+    if (window._tdmMode) {
+      try {
+        const convex = window.__arenaConvex;
+        const api = window.__arenaApi;
+        if (convex && api) {
+          convex.mutation(api.stats.reportGameStats, { kills: 1, deaths: 0 })
+            .catch(e => console.warn('stats sync failed:', e?.message));
+        }
+      } catch (e) {}
+    }
+  }
   if (!window._tdmMode && state.killCount % 3 === 0) spawnShieldDrop(bot.mesh.position);
   removeBot(bot);
 
@@ -4377,7 +4511,7 @@ function killBot(bot, headshot) {
       tdmRedScore++;
     }
     updateTDMScoreHUD();
-    addKillFeed(`💀 ${playerName} killed ${bot.team === 'red' ? 'Red' : 'Blue'} Bot`);
+    addKillFeed(`💀 ${killerName} killed ${bot.name || (bot.team === 'red' ? 'Red Bot' : 'Blue Bot')}`);
 
     // Check win condition
     if (tdmBlueScore >= TDM_KILL_TARGET || tdmRedScore >= TDM_KILL_TARGET) {
@@ -4388,6 +4522,20 @@ function killBot(bot, headshot) {
       document.getElementById('tdm-result-title').style.color = won ? '#ffcc00' : '#ff3333';
       document.getElementById('gameover-subtitle').textContent = won ? 'YOUR TEAM WINS' : 'ENEMY TEAM WINS';
       document.getElementById('tdm-final-score').textContent = `Blue ${tdmBlueScore} — Red ${tdmRedScore}`;
+
+      // Report match result to Convex
+      try {
+        const convex = window.__arenaConvex;
+        const api = window.__arenaApi;
+        if (convex && api) {
+          convex.mutation(api.stats.reportGameStats, {
+            kills: 0, deaths: 0,
+            wins: won ? 1 : 0,
+            losses: won ? 0 : 1,
+            matches: 1,
+          }).catch(e => console.warn('stats sync failed:', e?.message));
+        }
+      } catch (e) {}
       document.getElementById('gameover-screen').style.display = 'flex';
       document.exitPointerLock();
     }
@@ -4513,20 +4661,64 @@ function updateBots(dt) {
     }
 
     // Per-bot config
-    const cfg = bot.cfg || {
+    let cfg = bot.cfg || {
       speed: SETTINGS.BOT_SPEED,
       detectRange: SETTINGS.BOT_DETECT_RANGE,
       shootRange: SETTINGS.BOT_SHOOT_RANGE,
       shootInterval: SETTINGS.BOT_SHOOT_INTERVAL,
       damage: SETTINGS.BOT_DAMAGE,
     };
+    // TDM: smarter bots — faster reactions, longer range, quicker shots
+    if (window._tdmMode) {
+      cfg = {
+        speed: 5.5,
+        detectRange: 40,
+        shootRange: 35,
+        shootInterval: 800,
+        damage: 20,
+      };
+    }
 
     _toPlayer.subVectors(playerPos, bot.mesh.position);
-    const dist = _toPlayer.length();
-    const canSee = dist < cfg.detectRange && hasLineOfSight(bot.mesh.position, playerPos);
+    let dist = _toPlayer.length();
+    let actualTarget = playerPos;
+
+    // TDM: bots target nearest enemy (could be player or opposing bot)
+    if (window._tdmMode) {
+      let bestDist = bot.isAlly ? Infinity : dist; // allies don't target player
+      let bestTarget = bot.isAlly ? null : playerPos;
+
+      state.bots.forEach(other => {
+        if (other === bot || other.dead || other.team === bot.team) return;
+        const ex = other.mesh.position.x - bot.mesh.position.x;
+        const ez = other.mesh.position.z - bot.mesh.position.z;
+        const ed = Math.sqrt(ex*ex + ez*ez);
+        if (ed < bestDist) {
+          bestDist = ed;
+          bestTarget = other.mesh.position;
+        }
+      });
+
+      // For enemy bots, also consider the player
+      if (!bot.isAlly && dist < bestDist) {
+        bestDist = dist;
+        bestTarget = playerPos;
+      }
+
+      if (bestTarget) {
+        _toPlayer.subVectors(bestTarget, bot.mesh.position);
+        dist = _toPlayer.length();
+        actualTarget = bestTarget;
+      }
+    }
+
+    const canSee = dist < cfg.detectRange && hasLineOfSight(bot.mesh.position, actualTarget);
 
     // ── State transitions ──────────────────────
-    if (bot.enemyType === 'rusher') {
+    if (window._tdmMode) {
+      // TDM: always chase nearest enemy
+      bot.state = 'chase';
+    } else if (bot.enemyType === 'rusher') {
       if (dist < cfg.detectRange) bot.state = 'chase';
     } else {
       if (canSee) {
@@ -4673,18 +4865,129 @@ function updateBots(dt) {
       if (!botCollides(nx, bot.mesh.position.z)) bot.mesh.position.x = nx;
       if (!botCollides(bot.mesh.position.x, nz)) bot.mesh.position.z = nz;
 
-      // Always face player
-      bot.mesh.lookAt(playerPos.x, bot.mesh.position.y, playerPos.z);
+      // Face target
+      if (window._tdmMode && actualTarget) {
+        bot.mesh.lookAt(actualTarget.x, bot.mesh.position.y, actualTarget.z);
+      } else {
+        bot.mesh.lookAt(playerPos.x, bot.mesh.position.y, playerPos.z);
+      }
       moving = mLen > 0.1;
 
       // ── Combat ────────────────────────────────
-      if (bot.isAlly) {
-        // Ally bots don't attack the player — skip combat
+      if (bot.isAlly && window._tdmMode) {
+        // Ally bots attack enemy bots
+        bot.shootTimer -= dt * 1000;
+        if (bot.shootTimer <= 0) {
+          bot.shootTimer = cfg.shootInterval + Math.random() * 300;
+          // Find nearest enemy bot
+          let nearestEnemy = null;
+          let nearestDist = Infinity;
+          state.bots.forEach(other => {
+            if (other === bot || other.dead || other.team === bot.team) return;
+            const ex = other.mesh.position.x - bot.mesh.position.x;
+            const ez = other.mesh.position.z - bot.mesh.position.z;
+            const ed = Math.sqrt(ex*ex + ez*ez);
+            if (ed < nearestDist && ed < cfg.shootRange) {
+              nearestDist = ed;
+              nearestEnemy = other;
+            }
+          });
+          if (nearestEnemy) {
+            // Face the enemy
+            bot.mesh.lookAt(nearestEnemy.mesh.position.x, bot.mesh.position.y, nearestEnemy.mesh.position.z);
+            // Deal damage to enemy bot (85% hit chance)
+            if (Math.random() < 0.65) {
+              const allyDmg = 20;
+              // Shield first
+              if (nearestEnemy.shield > 0) {
+                const absorbed = Math.min(nearestEnemy.shield, allyDmg);
+                nearestEnemy.shield -= absorbed;
+                const remaining = allyDmg - absorbed;
+                if (remaining > 0) nearestEnemy.hp -= remaining;
+              } else {
+                nearestEnemy.hp -= allyDmg;
+              }
+              nearestEnemy.hp = Math.max(0, nearestEnemy.hp);
+              // Flash enemy
+              nearestEnemy.flashTimer = 0.12;
+              nearestEnemy.mesh.traverse(child => {
+                if (child.isMesh && child.material && child.material.color) {
+                  child.material.color.setHex(0xffffff);
+                }
+              });
+              if (nearestEnemy.hp <= 0) {
+                killBot(nearestEnemy, false, bot.name || 'Blue Bot');
+              }
+            }
+          }
+        }
+      } else if (bot.isAlly) {
+        // Non-TDM: ally bots don't attack
+      } else if (window._tdmMode && !bot.isAlly) {
+        // TDM: enemy bots target nearest opponent (player or ally bot)
+        bot.shootTimer -= dt * 1000;
+        if (bot.shootTimer <= 0) {
+          bot.shootTimer = cfg.shootInterval + Math.random() * 300;
+
+          // Find nearest target: player or ally bots
+          let targetIsPlayer = false;
+          let targetBot = null;
+          const playerDist = camera.position.distanceTo(bot.mesh.position);
+          let bestDist = playerDist;
+
+          // Check ally bots (blue team)
+          state.bots.forEach(other => {
+            if (other === bot || other.dead || other.team === bot.team) return;
+            const ex = other.mesh.position.x - bot.mesh.position.x;
+            const ez = other.mesh.position.z - bot.mesh.position.z;
+            const ed = Math.sqrt(ex*ex + ez*ez);
+            if (ed < bestDist) {
+              bestDist = ed;
+              targetBot = other;
+            }
+          });
+
+          // If player is still closest, target player
+          if (playerDist <= bestDist && playerDist < cfg.shootRange) {
+            targetIsPlayer = true;
+            targetBot = null;
+          }
+
+          if (targetIsPlayer) {
+            // Shoot at player
+            botShoot(bot, playerPos, cfg);
+          } else if (targetBot) {
+            // Shoot at ally bot
+            bot.mesh.lookAt(targetBot.mesh.position.x, bot.mesh.position.y, targetBot.mesh.position.z);
+            if (Math.random() < 0.65) {
+              const dmg = 20;
+              if (targetBot.shield > 0) {
+                const absorbed = Math.min(targetBot.shield, dmg);
+                targetBot.shield -= absorbed;
+                const remaining = dmg - absorbed;
+                if (remaining > 0) targetBot.hp -= remaining;
+              } else {
+                targetBot.hp -= dmg;
+              }
+              targetBot.hp = Math.max(0, targetBot.hp);
+              targetBot.flashTimer = 0.12;
+              targetBot.mesh.traverse(child => {
+                if (child.isMesh && child.material && child.material.color) {
+                  child.material.color.setHex(0xffffff);
+                }
+              });
+              if (targetBot.hp <= 0) {
+                killBot(targetBot, false, bot.name || 'Red Bot');
+              }
+            }
+          }
+        }
       } else if (bot.enemyType === 'rusher' && dist < cfg.shootRange) {
         bot.shootTimer -= dt * 1000;
         if (bot.shootTimer <= 0) {
           bot.shootTimer = cfg.shootInterval + Math.random() * 200;
-          damagePlayer(Math.round(cfg.damage * waveDmgMult(state.wave)));
+          const rusherDmg = window._tdmMode ? 25 : Math.round(cfg.damage * waveDmgMult(state.wave));
+          damagePlayer(rusherDmg);
           triggerHitFlash();
           bot.leftArmGroup.rotation.x  = -1.2;
           bot.rightArmGroup.rotation.x = -1.2;
@@ -4742,15 +5045,16 @@ function updateBots(dt) {
 function botShoot(bot, playerPos, cfg) {
   const isTank = bot.enemyType === 'tank';
   const baseDamage = cfg ? cfg.damage : SETTINGS.BOT_DAMAGE;
-  const damage = Math.round(baseDamage * waveDmgMult(state.wave));
+  // TDM: bots deal 20 damage per shot
+  const damage = window._tdmMode ? 20 : Math.round(baseDamage * waveDmgMult(state.wave));
 
   const gunOffset = new THREE.Vector3(0.35, isTank ? 1.0 : 0.8, 0.5).applyQuaternion(bot.mesh.quaternion);
   const bulletOrigin = bot.mesh.position.clone().add(gunOffset);
 
   const aimTarget = new THREE.Vector3(playerPos.x, bot.mesh.position.y + 1.0, playerPos.z);
 
-  // Tank: tighter spread, bigger bullet; Soldier: normal spread
-  const spread = isTank ? 0.14 : 0.32;
+  // TDM: much tighter spread for smarter bots
+  const spread = window._tdmMode ? 0.14 : (isTank ? 0.14 : 0.32);
   const dir = new THREE.Vector3(
     aimTarget.x - bulletOrigin.x + (Math.random() - 0.5) * spread,
     aimTarget.y - bulletOrigin.y + (Math.random() - 0.5) * spread * 0.5,
@@ -4784,10 +5088,10 @@ function botShoot(bot, playerPos, cfg) {
   state.botBullets.push({
     mesh: bulletMesh,
     dir: dir.clone(),
-    speed: isTank ? 18 : 28,
+    speed: isTank ? 18 : (window._tdmMode ? 40 : 28),
     life: 1.5,
     hit: false,
-    miss: Math.random() < 0.65,
+    miss: window._tdmMode ? (Math.random() < 0.35) : (Math.random() < 0.65),
     damage,
     isAlly: bot.isAlly || false,
   });
@@ -5134,7 +5438,7 @@ function updateSlide(dt) {
 }
 
 function updatePlayer(dt) {
-  if (!state.running || state.gameOver) return;
+  if (!state.running || state.gameOver || state.playerHP <= 0) return;
 
   // Handle slide/crouch input
   if (state.keys[KB.slide] && !isCrouching && !isSliding) {
@@ -5388,6 +5692,17 @@ function triggerGameOver() {
       tdmRedScore++;
       updateTDMScoreHUD();
       addKillFeed(`${playerName} was eliminated`);
+
+      // Report death to Convex
+      try {
+        const convex = window.__arenaConvex;
+        const api = window.__arenaApi;
+        if (convex && api) {
+          convex.mutation(api.stats.reportGameStats, { kills: 0, deaths: 1 })
+            .catch(e => console.warn('stats sync failed:', e?.message));
+        }
+      } catch (e) {}
+
       if (tdmRedScore >= TDM_KILL_TARGET) {
         state.gameOver = true;
         document.getElementById('tdm-result-title').textContent = 'DEFEATED';
@@ -5396,6 +5711,15 @@ function triggerGameOver() {
         document.getElementById('tdm-final-score').textContent = `Blue ${tdmBlueScore} — Red ${tdmRedScore}`;
         document.getElementById('gameover-screen').style.display = 'flex';
         document.exitPointerLock();
+        // Report loss
+        try {
+          const convex = window.__arenaConvex;
+          const api = window.__arenaApi;
+          if (convex && api) {
+            convex.mutation(api.stats.reportGameStats, { kills: 0, deaths: 0, wins: 0, losses: 1, matches: 1 })
+              .catch(e => console.warn('stats sync failed:', e?.message));
+          }
+        } catch (e) {}
         return;
       }
     }
@@ -5407,8 +5731,26 @@ function triggerGameOver() {
       state.playerHP = SETTINGS.PLAYER_HP;
       state.playerShield = SETTINGS.PLAYER_SHIELD;
       state.ammo = currentWeapon.maxAmmo;
-      camera.position.set(-25 + Math.random() * 10, PLAYER_HEIGHT, (Math.random() - 0.5) * 30);
+      // Clean position reset
+      const spawnPos = getSafeSpawnPosition();
+      camera.position.set(-(Math.abs(spawnPos.x) + 10), PLAYER_HEIGHT, spawnPos.z);
+      // Reset all movement state
       state.velocity = { x: 0, y: 0, z: 0 };
+      state.onGround = true;
+      state.keys = {};
+      state.mouseButtons = {};
+      state.reloading = false;
+      state.reloadTimer = 0;
+      // Reset camera effects
+      recoilPitch = 0;
+      recoilVelocity = 0;
+      shakeIntensity = 0;
+      shakeX = 0;
+      shakeY = 0;
+      currentSpread = 0;
+      adsProgress = 0;
+      camera.rotation.set(0, state.yaw, 0);
+      camera.rotation.order = 'YXZ';
       updateHealthUI();
       updateAmmoUI();
     }, 3000);
@@ -5661,7 +6003,92 @@ localStorage.removeItem('arenaGameMode');
 // Show lobby
 document.getElementById('tdm-code-display').textContent = TDM_ROOM_CODE || '----';
 document.getElementById('tdm-size-display').textContent = `${TDM_TEAM_SIZE} v ${TDM_TEAM_SIZE}`;
-document.getElementById('tdm-players-display').textContent = `1 / ${TDM_TEAM_SIZE * 2} players (AI fills ${TDM_TEAM_SIZE * 2 - 1} slots)`;
+
+// Render team slots
+function renderTeamSlots() {
+  const blueSlots = document.getElementById('blue-team-slots');
+  const redSlots = document.getElementById('red-team-slots');
+  if (!blueSlots || !redSlots) return;
+
+  const blueRemotes = Object.values(remotePlayers).filter(rp => rp.isAlly);
+  const redRemotes = Object.values(remotePlayers).filter(rp => !rp.isAlly);
+
+  blueSlots.innerHTML = '';
+  redSlots.innerHTML = '';
+
+  // Blue team: me + allies + AI slots
+  // Me
+  blueSlots.innerHTML += `
+    <div style="width:100px;text-align:center;">
+      <div style="width:64px;height:64px;margin:0 auto;border:2px solid #44aaff;border-radius:8px;background:rgba(68,170,255,0.1);display:flex;align-items:center;justify-content:center;">
+        <span style="font-size:24px;">🎮</span>
+      </div>
+      <div style="font-size:9px;letter-spacing:1px;color:#44aaff;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${playerName}</div>
+      <div style="font-size:8px;color:rgba(255,255,255,0.4);">● 200</div>
+    </div>
+  `;
+
+  // Blue remote players
+  blueRemotes.forEach(rp => {
+    blueSlots.innerHTML += `
+      <div style="width:100px;text-align:center;">
+        <div style="width:64px;height:64px;margin:0 auto;border:2px solid #44aaff;border-radius:8px;background:rgba(68,170,255,0.1);display:flex;align-items:center;justify-content:center;">
+          <span style="font-size:24px;">🎮</span>
+        </div>
+        <div style="font-size:9px;letter-spacing:1px;color:#44aaff;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${rp.playerName}</div>
+        <div style="font-size:8px;color:rgba(255,255,255,0.4);">● 200</div>
+      </div>
+    `;
+  });
+
+  // Blue AI slots
+  const blueAINeeded = Math.max(0, TDM_TEAM_SIZE - 1 - blueRemotes.length);
+  for (let i = 0; i < blueAINeeded; i++) {
+    blueSlots.innerHTML += `
+      <div style="width:100px;text-align:center;">
+        <div style="width:64px;height:64px;margin:0 auto;border:2px dashed rgba(68,170,255,0.3);border-radius:8px;background:rgba(68,170,255,0.03);display:flex;align-items:center;justify-content:center;">
+          <span style="font-size:20px;color:rgba(68,170,255,0.4);">🤖</span>
+        </div>
+        <div style="font-size:9px;letter-spacing:1px;color:rgba(68,170,255,0.4);margin-top:4px;">AI Bot</div>
+        <div style="font-size:8px;color:rgba(255,255,255,0.3);">● 200</div>
+      </div>
+    `;
+  }
+
+  // Red remote players
+  redRemotes.forEach(rp => {
+    redSlots.innerHTML += `
+      <div style="width:100px;text-align:center;">
+        <div style="width:64px;height:64px;margin:0 auto;border:2px solid #ff4444;border-radius:8px;background:rgba(255,68,68,0.1);display:flex;align-items:center;justify-content:center;">
+          <span style="font-size:24px;">🎮</span>
+        </div>
+        <div style="font-size:9px;letter-spacing:1px;color:#ff4444;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${rp.playerName}</div>
+        <div style="font-size:8px;color:rgba(255,255,255,0.4);">● 200</div>
+      </div>
+    `;
+  });
+
+  // Red AI slots
+  const redAINeeded = Math.max(0, TDM_TEAM_SIZE - redRemotes.length);
+  for (let i = 0; i < redAINeeded; i++) {
+    redSlots.innerHTML += `
+      <div style="width:100px;text-align:center;">
+        <div style="width:64px;height:64px;margin:0 auto;border:2px dashed rgba(255,68,68,0.3);border-radius:8px;background:rgba(255,68,68,0.03);display:flex;align-items:center;justify-content:center;">
+          <span style="font-size:20px;color:rgba(255,68,68,0.4);">🤖</span>
+        </div>
+        <div style="font-size:9px;letter-spacing:1px;color:rgba(255,68,68,0.4);margin-top:4px;">AI Bot</div>
+        <div style="font-size:8px;color:rgba(255,255,255,0.3);">● 200</div>
+      </div>
+    `;
+  }
+
+  // Update player count
+  const totalHumans = 1 + blueRemotes.length + redRemotes.length;
+  const totalSlots = TDM_TEAM_SIZE * 2;
+  document.getElementById('tdm-players-display').textContent = `${totalHumans} / ${totalSlots} players`;
+}
+
+renderTeamSlots();
 
 document.getElementById('tdm-start-btn').addEventListener('click', () => {
   console.log('TDM START CLICKED');
@@ -5682,12 +6109,13 @@ function startTDMGame() {
   state.bots.forEach(b => scene.remove(b.mesh));
   state.bots = [];
 
-  // Count real players (including self)
-  const realPlayerCount = 1 + Object.keys(remotePlayers).length;
-  // All real players go on blue team for now
-  const blueHumans = realPlayerCount;
+  // Count real players by team
+  const blueRemotes = Object.values(remotePlayers).filter(rp => rp.isAlly).length;
+  const redRemotes = Object.values(remotePlayers).filter(rp => !rp.isAlly).length;
+  const blueHumans = 1 + blueRemotes; // me + my party members
+  const redHumans = redRemotes; // opposing party members
   const blueBotsNeeded = Math.max(0, TDM_TEAM_SIZE - blueHumans);
-  const redBotsNeeded = TDM_TEAM_SIZE; // entire red team is AI
+  const redBotsNeeded = Math.max(0, TDM_TEAM_SIZE - redHumans);
 
   // Helper: recolor all meshes in a bot to team colors
   function recolorBot(bot, team) {
@@ -5847,6 +6275,7 @@ function startTDMGame() {
     const bot = spawnBot(i);
     bot.team = 'blue';
     bot.isAlly = true;
+    bot.name = 'Ally-' + (i + 1);
     // Remove the default bot mesh and replace with PvP-style model
     scene.remove(bot.mesh);
     const teamModel = buildTeamBotModel('blue');
@@ -5875,6 +6304,7 @@ function startTDMGame() {
     const bot = spawnBot(i + TDM_TEAM_SIZE);
     bot.team = 'red';
     bot.isAlly = false;
+    bot.name = 'Enemy-' + (i + 1);
     // Remove the default bot mesh and replace with PvP-style model
     scene.remove(bot.mesh);
     const teamModel = buildTeamBotModel('red');
@@ -5948,7 +6378,7 @@ function loop() {
   if (state.running && !state.gameOver && !gamePaused) {
     updatePlayer(dt);
     // Auto-fire for SMG (hold to shoot)
-    if (currentWeapon.auto && state.mouseButtons[0] && !state.reloading && !state.gameOver) {
+    if (currentWeapon.auto && state.mouseButtons[0] && !state.reloading && !state.gameOver && state.playerHP > 0) {
       shoot();
     }
     updateRecoil(dt);
