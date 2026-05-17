@@ -104,10 +104,10 @@ function play() {
         const convex = getConvex();
         if (convex) {
           convex.mutation(api.parties.startMatch, { matchCode: 'tdm-' + code })
-            .then(() => { location.href = `/multiplayer/?code=${code}&size=${size}`; })
+            .then(() => { location.href = `/multiplayer/?code=${code}&size=${size}&party=${currentPartyId}`; })
             .catch(e => toast(e.message?.replace(/^.*Error: /, '') || 'Failed to start', 'error'));
         } else {
-          location.href = `/multiplayer/?code=${code}&size=${size}`;
+          location.href = `/multiplayer/?code=${code}&size=${size}&party=${currentPartyId}`;
         }
       };
       tdmOverlay.classList.add('show');
@@ -700,7 +700,7 @@ async function pollParty() {
       if (!iAmLeader && party.matchCode) {
         if (party.matchCode.startsWith('tdm-')) {
           const tdmCode = party.matchCode.replace('tdm-', '');
-          location.href = `/multiplayer/?code=${tdmCode}&size=${tdmTeamSize || 3}`;
+          location.href = `/multiplayer/?code=${tdmCode}&size=${tdmTeamSize || 3}&party=${currentPartyId}`;
         } else {
           location.href = `/pvp/?code=${party.matchCode}`;
         }
