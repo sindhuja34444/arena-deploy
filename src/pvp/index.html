@@ -1000,6 +1000,7 @@ const KB = (() => {
     return binds;
   } catch(e) { return { ..._defaultBinds }; }
 })();
+window.KB = KB; // Expose for touch controls
 
 // Update HUD labels to show custom keybinds
 function keyLabel(code) {
@@ -6327,5 +6328,6 @@ function loop() {
 }
 loop();
 </script>
+<script src="../shared/touch-controls.js"></script>
 </body>
 </html> 
