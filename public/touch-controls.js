@@ -39,6 +39,7 @@
       background: rgba(255,255,255,0.03);
       border: 1.5px solid rgba(255,255,255,0.1);
       touch-action: none;
+      z-index: 10;
     }
     .tu-joy-knob {
       position: absolute; top: 50%; left: 50%;
@@ -51,8 +52,9 @@
 
     .tu-look-area {
       position: absolute; top: 0; right: 0;
-      width: 60%; height: 65%;
+      width: 60%; height: 55%;
       touch-action: none;
+      z-index: 1;
     }
 
     .tu-btn {
@@ -62,6 +64,7 @@
       font-family: 'Courier New', monospace;
       user-select: none; -webkit-user-select: none;
       touch-action: none;
+      z-index: 10;
     }
 
     .tu-fire {
@@ -156,45 +159,59 @@
       #minimap-wrap { width: 90px !important; height: 90px !important; top: 6px !important; left: 6px !important; }
       #minimap { width: 90px !important; height: 90px !important; }
 
-      /* Move health/shield stacked above inventory at bottom center */
+      /* Detach HUD container from default layout */
       #hud { 
         position: fixed !important;
-        bottom: 0 !important;
-        left: 50% !important;
-        transform: translateX(-50%) !important;
-        flex-direction: column !important; 
-        align-items: center !important; 
-        padding: 0 !important;
-        gap: 2px !important;
-        width: auto !important;
+        bottom: auto !important;
+        left: auto !important;
         right: auto !important;
+        top: auto !important;
+        transform: none !important;
+        display: block !important;
+        padding: 0 !important;
+        width: auto !important;
+        pointer-events: none !important;
       }
+
+      /* Health bar — positioned to the right of the minimap */
       #health-block {
+        position: fixed !important;
+        top: 6px !important;
+        left: 102px !important;
         display: flex !important;
         flex-direction: column !important;
         gap: 2px !important;
-        align-items: center !important;
-        order: -1 !important;
+        align-items: flex-start !important;
+        z-index: 50 !important;
+        pointer-events: none !important;
       }
       .stat-row { gap: 4px !important; }
-      .stat-bar-outer { width: 130px !important; height: 14px !important; }
+      .stat-bar-outer { width: 110px !important; height: 14px !important; }
       .stat-bar-text { font-size: 9px !important; padding: 0 4px !important; }
       .stat-icon { font-size: 11px !important; width: 12px !important; }
 
-      /* Keep inventory visible, tappable, below health bars */
+      /* Inventory — centre bottom of screen, tappable */
       #inventory {
+        position: fixed !important;
+        bottom: 8px !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
         display: flex !important;
-        position: relative !important;
-        bottom: auto !important;
-        left: auto !important;
-        transform: none !important;
-        gap: 4px !important;
-        margin-top: 2px !important;
+        flex-direction: row !important;
+        gap: 6px !important;
+        z-index: 910 !important;
+        pointer-events: auto !important;
       }
       .inv-slot {
-        width: 64px !important; height: 38px !important;
+        width: 64px !important; height: 40px !important;
         pointer-events: auto !important;
         cursor: pointer !important;
+        -webkit-tap-highlight-color: rgba(200,80,80,0.3) !important;
+        transition: transform 0.1s, border-color 0.1s !important;
+      }
+      .inv-slot:active {
+        transform: scale(0.92) !important;
+        border-color: rgba(200,80,80,0.9) !important;
       }
       .inv-slot svg, .inv-slot img { width: 56px !important; height: 26px !important; }
       .inv-key { display: none !important; }
@@ -207,6 +224,7 @@
         top: 6px !important;
         right: 50px !important;
         font-size: 10px !important;
+        pointer-events: none !important;
       }
       #points-num { font-size: 18px !important; }
       #kills-num { font-size: 14px !important; }
@@ -218,8 +236,8 @@
       .kill-entry { font-size: 8px !important; padding: 2px 5px !important; }
       #ammo-row { 
         position: fixed !important;
-        bottom: 50px !important;
-        right: 20px !important;
+        top: 60px !important;
+        left: 102px !important;
         z-index: 50 !important;
       }
       #crosshair { width: 20px !important; height: 20px !important; }
@@ -315,8 +333,8 @@
       if (t.identifier === joyId) moveJoy(t.clientX, t.clientY);
       if (t.identifier === lookId) {
         const s = getState(); if (!s) continue;
-        s.yaw -= (t.clientX - lx) * 0.003;
-        s.pitch -= (t.clientY - ly) * 0.003;
+        s.yaw -= (t.clientX - lx) * 0.01;
+        s.pitch -= (t.clientY - ly) * 0.01;
         s.pitch = Math.max(-1.4, Math.min(1.4, s.pitch));
         lx = t.clientX; ly = t.clientY;
       }
@@ -384,24 +402,34 @@
 
   // ─── INVENTORY TAP TO SWITCH ────────────────────────────────────────────
   // Make inventory slots tappable on mobile to switch weapons
-  setTimeout(() => {
-    const slot1 = document.getElementById('inv-slot-1');
-    const slot2 = document.getElementById('inv-slot-2');
-    if (slot1) {
-      slot1.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const s = getState(); if (s) { s.keys[getKB().weapon1] = true; setTimeout(() => s.keys[getKB().weapon1] = false, 120); }
-      });
-    }
-    if (slot2) {
-      slot2.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const s = getState(); if (s) { s.keys[getKB().weapon2] = true; setTimeout(() => s.keys[getKB().weapon2] = false, 120); }
-      });
-    }
-  }, 1000);
+  function setupInventoryTap() {
+    const inventory = document.getElementById('inventory');
+    if (!inventory) { setTimeout(setupInventoryTap, 500); return; }
+
+    // Use event delegation on the inventory container
+    inventory.addEventListener('touchstart', (e) => {
+      const slot = e.target.closest('.inv-slot');
+      if (!slot) return;
+      e.preventDefault();
+      e.stopPropagation();
+
+      const kb = getKB();
+
+      if (slot.id === 'inv-slot-1') {
+        // Dispatch synthetic keydown event to trigger switchWeapon
+        window.dispatchEvent(new KeyboardEvent('keydown', { code: kb.weapon1, bubbles: true }));
+        setTimeout(() => {
+          window.dispatchEvent(new KeyboardEvent('keyup', { code: kb.weapon1, bubbles: true }));
+        }, 80);
+      } else if (slot.id === 'inv-slot-2') {
+        window.dispatchEvent(new KeyboardEvent('keydown', { code: kb.weapon2, bubbles: true }));
+        setTimeout(() => {
+          window.dispatchEvent(new KeyboardEvent('keyup', { code: kb.weapon2, bubbles: true }));
+        }, 80);
+      }
+    }, { passive: false });
+  }
+  setTimeout(setupInventoryTap, 800);
 
   // ─── PAUSE ──────────────────────────────────────────────────────────────
   btn('tu-pause', () => {

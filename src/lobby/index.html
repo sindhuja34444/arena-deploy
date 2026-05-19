@@ -58,6 +58,19 @@
   .lobby-help b { color: var(--h-accent); font-weight: 600; }
 
   .topright-news { font-style: italic; }
+
+  @media (max-height: 500px) and (orientation: landscape) {
+    .lobby-stage { left: 10px; bottom: 66px; width: calc(100% - 20px); }
+    .lobby-stage h1 { font-size: 18px !important; letter-spacing: 2px !important; margin-bottom: 4px !important; }
+    .lobby-stage p { font-size: 11px !important; }
+    .code-inputs { gap: 6px; margin: 10px 0 12px; }
+    .code-inputs input { height: 50px; font-size: 24px; width: 60px; }
+    .lobby-actions { gap: 6px; flex-wrap: wrap; }
+    .lobby-actions .halo-btn { padding: 8px 12px; font-size: 9px; letter-spacing: 2px; }
+    .lobby-help { font-size: 10px; margin-top: 12px; max-width: none; }
+    .lobby-status { font-size: 10px; margin-top: 10px; }
+    .spinner { width: 24px; height: 24px; margin: 10px 0; }
+  }
 </style>
 
 <script type="module">

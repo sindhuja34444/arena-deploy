@@ -505,15 +505,91 @@ input { font-family: inherit; }
 *::-webkit-scrollbar-thumb { background: var(--h-line); border-radius: 3px; }
 *::-webkit-scrollbar-track { background: transparent; }
 
-/* Responsive */
-@media (max-width: 720px) {
-  .halo-tabs { left: 16px; gap: 4px; }
-  .halo-tab { padding: 7px 12px; font-size: 11px; letter-spacing: 2px; }
+/* Responsive — mobile landscape only */
+@media (max-height: 500px) and (orientation: landscape) {
+  .halo-tabs { left: 10px; top: 10px; gap: 2px; }
+  .halo-tab { padding: 5px 8px; font-size: 9px; letter-spacing: 1.5px; }
   .halo-keychip { display: none; }
-  .halo-topright { right: 16px; }
-  .halo-news { width: 240px; height: 76px; }
-  .halo-news img { width: 90px; }
-  .halo-main { left: 16px; right: 16px; bottom: 90px; width: auto; }
-  .halo-toolbar { padding: 10px 16px; grid-template-columns: 1fr; gap: 8px; }
-  .halo-toolbar-right { flex-wrap: wrap; }
+  .halo-topright { right: 10px; top: 10px; gap: 6px; }
+  .halo-topright .halo-btn { padding: 5px 10px; font-size: 9px; letter-spacing: 1.5px; }
+  .halo-news { display: none; }
+  .halo-status { font-size: 9px; letter-spacing: 2px; gap: 5px; }
+  .halo-status-dot { width: 6px; height: 6px; }
+
+  /* Mode list as small horizontal tabs in bottom-left */
+  .halo-main { 
+    left: 10px; right: auto; bottom: 54px; width: 25%; max-width: 25vw;
+  }
+  .halo-section-eyebrow { display: none; }
+  .halo-submenu[data-panel="play"] {
+    flex-direction: column !important;
+    flex-wrap: nowrap;
+    gap: 3px;
+  }
+  .halo-submenu[data-panel="play"] .tagline { display: none; }
+  .halo-submenu[data-panel="play"] .halo-item {
+    padding: 3px 6px;
+    font-size: 7px;
+    letter-spacing: 0.5px;
+    border: 1px solid var(--h-line);
+    background: var(--h-bg-pane);
+    backdrop-filter: blur(6px);
+    white-space: nowrap;
+  }
+  .halo-submenu[data-panel="play"] .halo-item:hover { padding-left: 6px; }
+  .halo-submenu[data-panel="play"] .halo-item.active {
+    border-color: var(--h-accent);
+    background: rgba(126,182,225,0.1);
+  }
+  .halo-submenu[data-panel="play"] .halo-item.active::before { display: none; }
+  .halo-submenu[data-panel="play"] .halo-item-meta { 
+    font-size: 6px; margin-left: 3px;
+  }
+
+  /* Other submenus (career, loadout, settings) stay vertical but compact */
+  .halo-submenu:not([data-panel="play"]) .halo-item {
+    padding: 8px 12px; font-size: 11px; letter-spacing: 2px;
+  }
+  .halo-submenu:not([data-panel="play"]) .halo-item:hover { padding-left: 14px; }
+  .halo-submenu:not([data-panel="play"]) .halo-item-meta { font-size: 8px; }
+
+  .halo-toolbar { padding: 8px 10px; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .halo-toolbar-left, .halo-toolbar-right { gap: 6px; }
+  .halo-keyhint { font-size: 8px; letter-spacing: 1px; }
+  .halo-keyhint kbd, .halo-tool kbd { font-size: 8px; padding: 1px 4px; min-width: 16px; }
+  .halo-tool { padding: 4px 8px 4px 6px; gap: 6px; }
+  .halo-tool-avatar { width: 22px; height: 22px; font-size: 10px; }
+  .halo-tool-name { font-size: 9px; letter-spacing: 1.5px; }
+  .halo-tool-sub { font-size: 8px; }
+  .halo-tool-icon { width: 22px; height: 22px; font-size: 14px; }
+  .halo-tool-badge { top: -4px; right: -4px; min-width: 16px; height: 16px; font-size: 9px; padding: 0 4px; }
+  .halo-tool.play { padding: 6px 10px 6px 12px; font-size: 10px; letter-spacing: 2px; gap: 8px; }
+
+  /* Stats grid */
+  .halo-stats-grid { grid-template-columns: repeat(3, 1fr); }
+  .halo-stat { padding: 10px 8px; }
+  .halo-stat-num { font-size: 16px; }
+  .halo-stat-lbl { font-size: 8px; }
+
+  /* Settings */
+  .halo-setting { padding: 10px 12px; }
+  .halo-setting-label { font-size: 10px; letter-spacing: 2px; }
+  .halo-setting-hint { font-size: 9px; }
+  .halo-setting-control input[type=text] { font-size: 11px; padding: 7px 10px; max-width: 140px; }
+  .halo-btn { padding: 7px 12px; font-size: 9px; letter-spacing: 2px; }
+
+  /* Overlays / modals */
+  .halo-modal { padding: 20px; }
+  .halo-modal-title { font-size: 16px; letter-spacing: 1px; }
+  .halo-modal-text { font-size: 11px; margin-bottom: 14px; }
+  .halo-modal-eyebrow { font-size: 9px; letter-spacing: 3px; }
+  .halo-code-display { font-size: 24px; letter-spacing: 8px; padding: 12px; }
+  .halo-link-display { font-size: 9px; padding: 8px 10px; }
+  .halo-modal-actions { gap: 6px; }
+  .halo-modal-actions .halo-btn { padding: 8px 14px; }
+
+  /* Keybind grid */
+  .halo-kb-grid { grid-template-columns: 1fr 80px; gap: 4px 10px; max-height: 260px; }
+  .halo-kb-action { font-size: 10px; padding: 8px 0; }
+  .halo-kb-key { padding: 8px; font-size: 10px; }
 }
